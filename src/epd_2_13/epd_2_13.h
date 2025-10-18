@@ -1,0 +1,40 @@
+#include "hardware/spi.h"
+#include "pico/stdlib.h"
+
+#define EPD_2_13_WIDTH 128
+#define EPD_2_13_HEIGHT 296
+
+#ifndef EPD_2_13_PIN_CS
+#define EPD_2_13_PIN_CS 9
+#endif
+
+#ifndef EPD_2_13_PIN_CLK
+#define EPD_2_13_PIN_CLK 10
+#endif
+
+#ifndef EPD_2_13_PIN_MOSI
+#define EPD_2_13_PIN_MOSI 11
+#endif
+
+#ifndef EPD_2_13_PIN_RESET
+#define EPD_2_13_PIN_RESET 12
+#endif
+
+#ifndef EPD_2_13_PIN_BUSY
+#define EPD_2_13_PIN_BUSY 13
+#endif
+
+static const uint8_t epd_2_13[] = {
+    2, 0x00, 0x0f, 0x29,
+    2, 0x01, 0x07, 0x00,
+    3, 0x03, 0x10, 0x54, 0x44,
+    7, 0x06, 0x05, 0x00, 0x3f, 0x0a, 0x25, 0x12, 0x1a,
+    1, 0x50, 0x37,
+    2, 0x60, 0x02, 0x02,
+    4, 0x61, 0x00, 0x80, 0x01, 0x28,
+    1, 0xe3, 0xFF,
+    1, 0xe7, 0x1c,
+    1, 0xe9, 0x01,
+    3, 0xb4, 0xd0, 0xb5, 0x03,
+    1, 0x30, 0x08,
+    0, 0x04};
