@@ -23,7 +23,11 @@ void fill_background(epd_t *epd, color_t color, uint8_t *canvas)
     if (!epd || !canvas)
         return;
 
-    for (uint16_t i = 0; i < epd->height * epd->width / sizeof(uint8_t) / epd->depth; i++)
+    const int pixel_per_byte = CHAR_BIT / epd->depth;
+
+    const uint32_t total_pixels = epd->width * epd->height;
+
+    for (uint16_t i = 0; i < total_pixels / pixel_per_byte; i++)
     {
         canvas[i] = (color << 6) | (color << 4) | (color << 2) | color;
     }
@@ -408,7 +412,6 @@ font_property_t font_properties(text_type_t type)
         font_property.end = FONT_NOTO_KUFI_ARABIC_12_START_CHAR + FONT_NOTO_KUFI_ARABIC_12_LENGTH;
         break;
 #endif
-
     }
 
     return font_property;

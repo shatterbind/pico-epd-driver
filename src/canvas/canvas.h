@@ -3,8 +3,7 @@
 #include <stdlib.h>
 #include "epd.h"
 
-#define START_CHAR 32
-#define END_CHAR 126
+#define CHAR_BIT 8
 
 #define USE_FONT_CAMBRIA_16
 
