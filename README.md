@@ -1,1 +1,1 @@
-# pico2-epd-driver
+# pico-epd-driver
