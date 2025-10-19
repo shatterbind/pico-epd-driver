@@ -16,7 +16,7 @@ else()
     set(USERHOME $ENV{HOME})
 endif()
 set(sdkVersion 2.2.0)
-set(toolchainVersion 14_2_Rel1)
+set(toolchainVersion RISCV_ZCB_RPI_2_2_0_3)
 set(picotoolVersion 2.2.0-a4)
 set(picoVscode ${USERHOME}/.pico-sdk/cmake/pico-vscode.cmake)
 if (EXISTS ${picoVscode})
@@ -55,6 +55,6 @@ pico_set_program_version(${CMAKE_PROJECT_NAME} "0.1")
 # pico_enable_stdio_usb(${CMAKE_PROJECT_NAME} 1)
 
 # pull in common dependencies
-target_link_libraries(${CMAKE_PROJECT_NAME} epd_2_13 canvas pico_stdlib hardware_spi hardware_pio hardware_interp hardware_adc hardware_xosc hardware_powman hardware_sync)
+target_link_libraries(${CMAKE_PROJECT_NAME} epd_2_13 canvas pico_stdlib hardware_adc)
 
 pico_add_extra_outputs(${CMAKE_PROJECT_NAME})

@@ -16,31 +16,31 @@
 #define USE_NOTO_KUFI_ARABIC_12
 
 #ifdef USE_NOTO_KUFI_ARABIC_8
-#include "noto_kufi_arabic_8_font.h"
+#include "fonts/noto_kufi_arabic_8_font.h"
 #endif
 
 #ifdef USE_NOTO_KUFI_ARABIC_12
-#include "noto_kufi_arabic_12_font.h"
+#include "fonts/noto_kufi_arabic_12_font.h"
 #endif
 
 #ifdef USE_FONT_CAMBRIA_16
-#include "font_cambria_16.h"
+#include "fonts/font_cambria_16.h"
 #endif
 
 #ifdef USE_FONT_TAHOMA_8
-#include "tahoma_8_font.h"
+#include "fonts/tahoma_8_font.h"
 #endif
 
 #ifdef USE_FONT_TAHOMA_12
-#include "tahoma_12_font.h"
+#include "fonts/tahoma_12_font.h"
 #endif
 
 #ifdef USE_FONT_TAHOMA_16
-#include "tahoma_16_font.h"
+#include "fonts/tahoma_16_font.h"
 #endif
 
 #ifdef USE_FONT_TAHOMA_24
-#include "tahoma_24_font.h"
+#include "fonts/tahoma_24_font.h"
 #endif
 
 /*************************************/
@@ -61,8 +61,8 @@ typedef enum
 {
     FONT_CAMBRIA_16,
     FONT_TAHOMA_8,
-    FONT_TAHOMA_16,
     FONT_TAHOMA_12,
+    FONT_TAHOMA_16,
     FONT_TAHOMA_24,
     NOTO_KUFI_ARABIC_8,
     NOTO_KUFI_ARABIC_12,
