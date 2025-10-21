@@ -9,7 +9,7 @@
 
 #define TEMP_SENSOR_CHANNEL 4
 
-#define TEST_CASE 1
+#define TEST_CASE 0
 
 float read_onboard_temperature(bool toCelsius)
 {
@@ -49,14 +49,15 @@ int main()
     fill_background(&epd, WHITE, canvas);
 
 #if TEST_CASE == 0
-    const int cols = 4;
-    const int rows = 8;
-    const int box_w = 27;
-    const int box_h = 27;
+    const int cols = 5;
+    const int rows = 10;
+    const int box_w = 23;
+    const int box_h = 23;
+    const int gap = 2;
+    const int step_x = box_w + gap;
+    const int step_y = box_h + gap;
     const int start_x = 0;
     const int start_y = 0;
-    const int step_x = 31;
-    const int step_y = 31;
     const color_t palette[] = {YELLOW, RED, BLACK};
     const int palette_len = sizeof(palette) / sizeof(palette[0]);
 
