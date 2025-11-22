@@ -9,7 +9,7 @@
 
 #define TEMP_SENSOR_CHANNEL 4
 
-#define TEST_CASE 0
+#define TEST_CASE 2 // 0-2
 
 float read_onboard_temperature(bool toCelsius)
 {
@@ -45,8 +45,6 @@ int main()
 
     // code
     blink(1000);
-
-    fill_background(&epd, WHITE, canvas);
 
 #if TEST_CASE == 0
     const int cols = 5;
@@ -101,6 +99,34 @@ int main()
 
     draw_text(&epd, 0, 125, "hello", FONT_TAHOMA_24, BLACK, 3, canvas);
     draw_text(&epd, 0, 150, "world", FONT_TAHOMA_24, BLACK, 3, canvas);
+#elif TEST_CASE == 2
+    adc_init();
+    adc_set_temp_sensor_enabled(true);
+
+    char buffer[8] = {0};
+    float temperature = read_onboard_temperature(true);
+
+    fill_background(&epd, WHITE, canvas);
+
+    snprintf(buffer, sizeof(buffer), "%.2f", temperature);
+
+    draw_text_with_bg(&epd, 3, 0, "Temperature:", FONT_TAHOMA_12, BLACK, 3, YELLOW, canvas);
+    draw_text_with_bg(&epd, 3, 16, buffer, FONT_TAHOMA_12, BLACK, 3, YELLOW, canvas);
+
+    draw_text_with_bg(&epd, 3, 32, "hello", NOTO_KUFI_ARABIC_8, YELLOW, 3, BLACK, canvas);
+    draw_text_with_bg(&epd, 3, 46, "world", NOTO_KUFI_ARABIC_8, YELLOW, 3, BLACK, canvas);
+
+    draw_text_with_bg(&epd, 3, 60, "hello", FONT_TAHOMA_12, RED, 3, BLACK, canvas);
+    draw_text_with_bg(&epd, 3, 76, "world", FONT_TAHOMA_12, RED, 3, BLACK, canvas);
+
+    draw_text_with_bg(&epd, 3, 92, "hello", FONT_TAHOMA_16, BLACK, 3, RED, canvas);
+    draw_text_with_bg(&epd, 3, 113, "world", FONT_TAHOMA_16, BLACK, 3, RED, canvas);
+
+    draw_text_with_bg(&epd, 3, 134, "hello", FONT_TAHOMA_24, YELLOW, 3, BLACK, canvas);
+    draw_text_with_bg(&epd, 3, 166, "world", FONT_TAHOMA_24, YELLOW, 3, BLACK, canvas);
+
+    draw_text_with_bg(&epd, 3, 198, "asdsadd", FONT_TAHOMA_24, WHITE, 3, BLACK, canvas);
+    draw_text_with_bg(&epd, 3, 230, "world", FONT_TAHOMA_24, WHITE, 3, BLACK, canvas);
 #endif
 
     epd_display(&epd, canvas);
