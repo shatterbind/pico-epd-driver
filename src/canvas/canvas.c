@@ -161,77 +161,63 @@ void draw_text_with_bg(epd_t *epd, uint16_t x, uint16_t y, const char *text, tex
     }
 }
 
-// void draw_line(epd_t *epd, uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, color_t color)
-// {
-//     if (!epd)
-//     {
-//         return;
-//     }
+void draw_line(epd_t *epd, uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, color_t color, uint8_t *canvas)
+{
+    if (!epd || !canvas)
+    {
+        return;
+    }
 
-//     int16_t dx = abs(x1 - x0);
-//     int16_t dy = abs(y1 - y0);
-//     int16_t sx = (x0 < x1) ? 1 : -1;
-//     int16_t sy = (y0 < y1) ? 1 : -1;
-//     int16_t err = dx - dy;
+    int16_t dx = abs(x1 - x0);
+    int16_t dy = abs(y1 - y0);
+    
+    int8_t sx = (x0 < x1) ? 1 : -1;
+    int8_t sy = (y0 < y1) ? 1 : -1;
 
-//     int16_t length = (dx > dy) ? dx + 1 : dy + 1;
-//     uint8_t buffer[length * 2];
+    int16_t err = dx - dy; 
+    int16_t e2;
 
-//     uint8_t color_high = (uint8_t)(color >> 8);
-//     uint8_t color_low = (uint8_t)color;
+    uint16_t x = x0;
+    uint16_t y = y0;
 
-//     for (int16_t i = 0; i < length; i++)
-//     {
-//         buffer[i * 2] = color_high;
-//         buffer[i * 2 + 1] = color_low;
-//     }
+    while (true)
+    {
+        if (x < epd->width && y < epd->height) {
+            epd_set_pixel(epd, canvas, x, y, color);
+        }
 
-//     if (dx == 0 || dy == 0)
-//     {
-//         if (dy == 0)
-//         {
-//             epd_set_window(epd, x0, y0, x1, y1);
-//         }
-//         else
-//         {
+        if (x == x1 && y == y1)
+        {
+            break;
+        }
 
-//             epd_set_window(epd, x0, y0, x0, y1);
-//         }
+        e2 = 2 * err;
 
-//         epd_flush(epd, buffer, length * 2);
-//         return;
-//     }
+        if (e2 > -dy) 
+        {
+            err -= dy;
+            x += sx;
+        }
 
-//     for (int16_t i = 0; i < length; ++i)
-//     {
-//         epd_draw_pixel(epd, x0, y0, color);
+        if (e2 < dx)
+        {
+            err += dx;
+            y += sy;
+        }
+    }
+}
 
-//         int16_t e2 = err * 2;
-//         if (e2 > -dy)
-//         {
-//             err -= dy;
-//             x0 += sx;
-//         }
-//         if (e2 < dx)
-//         {
-//             err += dx;
-//             y0 += sy;
-//         }
-//     }
-// }
-
-// void draw_rect(epd_t *epd, uint16_t x, uint16_t y, uint16_t width, uint16_t height, color_t color)
-// {
-//     if (!epd || width == 0 || height == 0)
-//     {
-//         return;
-//     }
-
-//     draw_line(epd, x, y, x + width - 1, y, color);
-//     draw_line(epd, x, y + height - 1, x + width - 1, y + height - 1, color);
-//     draw_line(epd, x, y, x, y + height - 1, color);
-//     draw_line(epd, x + width - 1, y, x + width - 1, y + height - 1, color);
-// }
+void draw_rect(epd_t *epd, uint16_t x, uint16_t y, uint16_t width, uint16_t height, color_t color, uint8_t *canvas)
+{
+    if (!epd || width == 0 || height == 0)
+    {
+        return;
+    }
+    draw_line(epd, x, y, x + width - 1, y, color, canvas);                     // Top edge
+    draw_line(epd, x, y, x, y + height - 1, color, canvas);                    // Left edge
+    draw_line(epd, x + width - 1, y, x + width - 1, y + height - 1, color, canvas); // Right edge
+    draw_line(epd, x, y + height - 1, x + width - 1, y + height - 1, color, canvas); // Bottom edge
+}
 
 void fill_rect(epd_t *epd, uint16_t x, uint16_t y, uint16_t width, uint16_t height, color_t color, uint8_t *canvas)
 {
