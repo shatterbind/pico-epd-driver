@@ -6,7 +6,7 @@ static inline bool is_not_printable(char c, font_property_t font_property)
     return c < font_property.start || c > font_property.end;
 }
 
-void epd_set_pixel(epd_t *epd, uint8_t *canvas, uint16_t x, uint16_t y, uint8_t color)
+void epd_set_pixel(epd_t *epd, uint16_t x, uint16_t y, uint8_t color, uint8_t *canvas)
 {
     uint8_t bits_per_pixel = epd->depth;
     uint8_t pixels_per_byte = 8 / bits_per_pixel;
@@ -72,7 +72,7 @@ void draw_text(epd_t *epd, uint16_t x, uint16_t y, const char *text, text_type_t
             {
                 if ((font.pointer[offset_array + temp_offset_row] >> offset_bit) & mask)
                 {
-                    epd_set_pixel(epd, canvas, x + col, y + row, color);
+                    epd_set_pixel(epd, x + col, y + row, color, canvas);
                 }
 
                 offset_bit++;
@@ -130,11 +130,11 @@ void draw_text_with_bg(epd_t *epd, uint16_t x, uint16_t y, const char *text, tex
             {
                 if ((font.pointer[offset_array + temp_offset_row] >> offset_bit) & mask)
                 {
-                    epd_set_pixel(epd, canvas, x + col, y + row, color);
+                    epd_set_pixel(epd, x + col, y + row, color, canvas);
                 }
                 else
                 {
-                    epd_set_pixel(epd, canvas, x + col, y + row, background);
+                    epd_set_pixel(epd, x + col, y + row, background, canvas);
                 }
 
                 offset_bit++;
@@ -153,7 +153,7 @@ void draw_text_with_bg(epd_t *epd, uint16_t x, uint16_t y, const char *text, tex
         {
             for (size_t j = 0; j < font.height; j++)
             {
-                epd_set_pixel(epd, canvas, x + width + i, y + j, background);
+                epd_set_pixel(epd, x + width + i, y + j, background, canvas);
             }
         }
 
@@ -170,11 +170,11 @@ void draw_line(epd_t *epd, uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, c
 
     int16_t dx = abs(x1 - x0);
     int16_t dy = abs(y1 - y0);
-    
+
     int8_t sx = (x0 < x1) ? 1 : -1;
     int8_t sy = (y0 < y1) ? 1 : -1;
 
-    int16_t err = dx - dy; 
+    int16_t err = dx - dy;
     int16_t e2;
 
     uint16_t x = x0;
@@ -182,8 +182,9 @@ void draw_line(epd_t *epd, uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, c
 
     while (true)
     {
-        if (x < epd->width && y < epd->height) {
-            epd_set_pixel(epd, canvas, x, y, color);
+        if (x < epd->width && y < epd->height)
+        {
+            epd_set_pixel(epd, x, y, color, canvas);
         }
 
         if (x == x1 && y == y1)
@@ -193,7 +194,7 @@ void draw_line(epd_t *epd, uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, c
 
         e2 = 2 * err;
 
-        if (e2 > -dy) 
+        if (e2 > -dy)
         {
             err -= dy;
             x += sx;
@@ -213,9 +214,10 @@ void draw_rect(epd_t *epd, uint16_t x, uint16_t y, uint16_t width, uint16_t heig
     {
         return;
     }
-    draw_line(epd, x, y, x + width - 1, y, color, canvas);                     // Top edge
-    draw_line(epd, x, y, x, y + height - 1, color, canvas);                    // Left edge
-    draw_line(epd, x + width - 1, y, x + width - 1, y + height - 1, color, canvas); // Right edge
+
+    draw_line(epd, x, y, x + width - 1, y, color, canvas);                           // Top edge
+    draw_line(epd, x, y, x, y + height - 1, color, canvas);                          // Left edge
+    draw_line(epd, x + width - 1, y, x + width - 1, y + height - 1, color, canvas);  // Right edge
     draw_line(epd, x, y + height - 1, x + width - 1, y + height - 1, color, canvas); // Bottom edge
 }
 
@@ -233,83 +235,78 @@ void fill_rect(epd_t *epd, uint16_t x, uint16_t y, uint16_t width, uint16_t heig
             if (i > epd->height || j > epd->width)
                 continue;
 
-            epd_set_pixel(epd, canvas, j, i, color);
+            epd_set_pixel(epd, j, i, color, canvas);
         }
     }
 }
 
-// inline void draw_circle_points(epd_t *epd, int xc, int yc, int x, int y, color_t color)
-// {
-//     epd_draw_pixel(epd, xc + x, yc + y, color);
-//     epd_draw_pixel(epd, xc - x, yc + y, color);
-//     epd_draw_pixel(epd, xc + x, yc - y, color);
-//     epd_draw_pixel(epd, xc - x, yc - y, color);
-//     epd_draw_pixel(epd, xc + y, yc + x, color);
-//     epd_draw_pixel(epd, xc - y, yc + x, color);
-//     epd_draw_pixel(epd, xc + y, yc - x, color);
-//     epd_draw_pixel(epd, xc - y, yc - x, color);
-// }
+void draw_circle(epd_t *epd, uint16_t x_center, uint16_t y_center, uint16_t radius, color_t color, uint8_t *canvas)
+{
+    int x = 0, y = radius;
+    int d = 3 - 2 * radius;
 
-// void draw_circle(epd_t *epd, uint16_t x_center, uint16_t y_center, uint16_t radius, color_t color)
-// {
-//     int x = 0, y = radius;
-//     int d = 3 - 2 * radius;
+    while (x <= y)
+    {
+        epd_set_pixel(epd, x_center + x, y_center + y, color, canvas);
+        epd_set_pixel(epd, x_center - x, y_center + y, color, canvas);
+        epd_set_pixel(epd, x_center + x, y_center - y, color, canvas);
+        epd_set_pixel(epd, x_center - x, y_center - y, color, canvas);
+        epd_set_pixel(epd, x_center + y, y_center + x, color, canvas);
+        epd_set_pixel(epd, x_center - y, y_center + x, color, canvas);
+        epd_set_pixel(epd, x_center + y, y_center - x, color, canvas);
+        epd_set_pixel(epd, x_center - y, y_center - x, color, canvas);
 
-//     while (x <= y)
-//     {
-//         draw_circle_points(epd, x_center, y_center, x, y, color);
+        if (d > 0)
+        {
+            y--;
+            d = d + 4 * (x - y) + 10;
+        }
+        else
+        {
+            d = d + 4 * x + 6;
+        }
+        x++;
+    }
+}
 
-//         if (d > 0)
-//         {
-//             y--;
-//             d = d + 4 * (x - y) + 10;
-//         }
-//         else
-//         {
-//             d = d + 4 * x + 6;
-//         }
-//         x++;
-//     }
-// }
+void fill_circle(epd_t *epd, uint16_t x_center, uint16_t y_center, uint16_t radius, color_t color, uint8_t *canvas)
+{
+    if (!epd || radius == 0)
+    {
+        return;
+    }
 
-// void fill_circle(epd_t *epd, uint16_t x_center, uint16_t y_center, uint16_t radius, color_t color)
-// {
-//     if (!epd || radius == 0)
-//     {
-//         return;
-//     }
+    int16_t x = radius;
+    int16_t y = 0;
+    int16_t radius_error = 1 - x;
 
-//     int16_t x = radius;
-//     int16_t y = 0;
-//     int16_t radius_error = 1 - x;
+    while (x >= y)
+    {
+        for (int16_t i = x_center - x; i <= x_center + x; i++)
+        {
+            epd_set_pixel(epd, i, y_center + y, color, canvas);
+            epd_set_pixel(epd, i, y_center - y, color, canvas);
+        }
 
-//     while (x >= y)
-//     {
-//         for (int16_t i = x_center - x; i <= x_center + x; i++)
-//         {
-//             epd_draw_pixel(epd, i, y_center + y, color);
-//             epd_draw_pixel(epd, i, y_center - y, color);
-//         }
+        for (int16_t i = x_center - y; i <= x_center + y; i++)
+        {
+            epd_set_pixel(epd, i, y_center + x, color, canvas);
+            epd_set_pixel(epd, i, y_center - x, color, canvas);
+        }
 
-//         for (int16_t i = x_center - y; i <= x_center + y; i++)
-//         {
-//             epd_draw_pixel(epd, i, y_center + x, color);
-//             epd_draw_pixel(epd, i, y_center - x, color);
-//         }
+        y++;
 
-//         y++;
-
-//         if (radius_error < 0)
-//         {
-//             radius_error += 2 * y + 1;
-//         }
-//         else
-//         {
-//             x--;
-//             radius_error += 2 * (y - x + 1);
-//         }
-//     }
-// }
+        if (radius_error < 0)
+        {
+            radius_error += 2 * y + 1;
+        }
+        else
+        {
+            x--;
+            radius_error += 2 * (y - x + 1);
+        }
+    }
+}
 
 font_property_t font_properties(text_type_t type)
 {

@@ -9,15 +9,17 @@
 
 #define TEMP_SENSOR_CHANNEL 4
 
-#define TEST_CASE_0_BOXES 0        // colored boxes
-#define TEST_CASE_1_TEXT 1         // temperature + text samples
-#define TEST_CASE_2_TEXT_BG 2      // text with background
-#define TEST_CASE_3_RAYS 3         // sun rays demo
-#define TEST_CASE_4_BANDS 4        // horizontal color bands
-#define TEST_CASE_5_NESTED_RECTS 5 // nested rectangles demo
+#define TEST_CASE_0_BOXES 0         // colored boxes
+#define TEST_CASE_1_TEXT 1          // temperature + text samples
+#define TEST_CASE_2_TEXT_BG 2       // text with background
+#define TEST_CASE_3_RAYS 3          // sun rays demo
+#define TEST_CASE_4_BANDS 4         // horizontal color bands
+#define TEST_CASE_5_NESTED_RECTS 5  // nested rectangles demo
+#define TEST_CASE_6_CIRCLE 6        // circle demo
+#define TEST_CASE_7_CIRCLE_FILLED 7 // circle demo
 
 #ifndef TEST_CASE
-#define TEST_CASE TEST_CASE_5_NESTED_RECTS
+#define TEST_CASE TEST_CASE_0_BOXES
 #endif
 
 float read_onboard_temperature(bool toCelsius)
@@ -223,12 +225,10 @@ int main()
             int x = start_x_adj + cx * (eff_box_w + gap);
             int y = start_y + ry * (eff_box_h + gap);
 
-            /* cast sizes to expected unsigned types to avoid accidental large values */
             draw_rect(&epd, x, y, (uint16_t)eff_box_w, (uint16_t)eff_box_h, c, canvas);
         }
     }
 
-    // one box with repeated (nested) rectangles inside
     const int outer_w = 120;
     const int outer_h = 120;
     const int outer_x = (w - outer_w) / 2;
@@ -246,8 +246,76 @@ int main()
         draw_rect(&epd, nx, ny, (uint16_t)nw, (uint16_t)nh, nc, canvas);
     }
 
-#endif
+#elif TEST_CASE == TEST_CASE_6_CIRCLE
+    const int cols = 5;
+    const int rows = 10;
+    const int radius = 11;
+    const int gap = 2;
+    const int step_x = 2 * radius + gap;
+    const int step_y = 2 * radius + gap;
+    const int start_x = radius;
+    const int start_y = radius;
 
+    const color_t palette[] = {YELLOW, RED, BLACK};
+    const int palette_len = sizeof(palette) / sizeof(palette[0]);
+
+    fill_background(&epd, WHITE, canvas);
+
+    uint32_t rnd = (uint32_t)to_us_since_boot(get_absolute_time());
+
+    if (rnd == 0)
+        rnd = 0x12345678u;
+
+    for (int cx = 0; cx < cols; ++cx)
+    {
+        for (int ry = 0; ry < rows; ++ry)
+        {
+            rnd ^= rnd << 13;
+            rnd ^= rnd >> 17;
+            rnd ^= rnd << 5;
+            int color = palette[rnd % palette_len];
+            int x = start_x + cx * step_x;
+            int y = start_y + ry * step_y;
+            draw_circle(&epd, x, y, radius, color, canvas);
+        }
+    }
+
+#elif TEST_CASE == TEST_CASE_7_CIRCLE_FILLED
+    const int cols = 5;
+    const int rows = 10;
+    const int radius = 11;
+    const int gap = 2;
+    const int step_x = 2 * radius + gap;
+    const int step_y = 2 * radius + gap;
+    const int start_x = radius;
+    const int start_y = radius;
+
+    const color_t palette[] = {YELLOW, RED, BLACK};
+    const int palette_len = sizeof(palette) / sizeof(palette[0]);
+
+    fill_background(&epd, WHITE, canvas);
+
+    uint32_t rnd = (uint32_t)to_us_since_boot(get_absolute_time());
+
+    if (rnd == 0)
+        rnd = 0x12345678u;
+
+    for (int cx = 0; cx < cols; ++cx)
+    {
+        for (int ry = 0; ry < rows; ++ry)
+        {
+            rnd ^= rnd << 13;
+            rnd ^= rnd >> 17;
+            rnd ^= rnd << 5;
+            int color = palette[rnd % palette_len];
+            int x = start_x + cx * step_x;
+            int y = start_y + ry * step_y;
+
+            fill_circle(&epd, x, y, radius, color, canvas);
+        }
+    }
+
+#endif
     epd_display(&epd, canvas);
     epd_sleep(&epd);
 
