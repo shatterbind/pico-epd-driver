@@ -21,7 +21,9 @@ void epd_set_pixel(epd_t *epd, uint16_t x, uint16_t y, uint8_t color, uint8_t *c
 void fill_background(epd_t *epd, color_t color, uint8_t *canvas)
 {
     if (!epd || !canvas)
+    {
         return;
+    }
 
     const int pixel_per_byte = CHAR_BIT / epd->depth;
 
