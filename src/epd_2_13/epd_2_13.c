@@ -17,6 +17,7 @@ epd_t epd_create(uint8_t dc)
     epd.height = EPD_2_13_HEIGHT;
     epd.baud_rate = BAUD_RATE;
     epd.depth = DEPTH_2BIT;
+    epd.rotation = EPD_ROT_0;
     epd.spi_port = spi1;
     epd.pin_cfg = pin_cfg;
     epd.gpio_mask = (1u << epd.pin_cfg.dc) | (1u << epd.pin_cfg.cs);

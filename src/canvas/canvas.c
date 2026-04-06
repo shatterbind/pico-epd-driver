@@ -7,9 +7,82 @@ static inline bool is_supported_depth(uint8_t bits_per_pixel)
     return bits_per_pixel != 0 && (8 % bits_per_pixel) == 0;
 }
 
+uint16_t canvas_width(const epd_t *epd)
+{
+    if (!epd)
+    {
+        return 0;
+    }
+
+    switch (epd->rotation)
+    {
+    case EPD_ROT_90:
+    case EPD_ROT_270:
+        return epd->height;
+    case EPD_ROT_0:
+    case EPD_ROT_180:
+    default:
+        return epd->width;
+    }
+}
+
+uint16_t canvas_height(const epd_t *epd)
+{
+    if (!epd)
+    {
+        return 0;
+    }
+
+    switch (epd->rotation)
+    {
+    case EPD_ROT_90:
+    case EPD_ROT_270:
+        return epd->width;
+    case EPD_ROT_0:
+    case EPD_ROT_180:
+    default:
+        return epd->height;
+    }
+}
+
 static inline bool is_not_printable(uint8_t c, font_property_t font_property)
 {
     return c < font_property.start || c > font_property.end;
+}
+
+static inline bool map_logical_to_physical(const epd_t *epd, uint16_t x, uint16_t y, uint16_t *out_x, uint16_t *out_y)
+{
+    if (!epd || !out_x || !out_y)
+    {
+        return false;
+    }
+
+    const uint16_t w = epd->width;
+    const uint16_t h = epd->height;
+
+    switch (epd->rotation)
+    {
+    case EPD_ROT_0:
+    default:
+        *out_x = x;
+        *out_y = y;
+        return true;
+
+    case EPD_ROT_180:
+        *out_x = (uint16_t)(w - 1u - x);
+        *out_y = (uint16_t)(h - 1u - y);
+        return true;
+
+    case EPD_ROT_90:
+        *out_x = y;
+        *out_y = (uint16_t)(h - 1u - x);
+        return true;
+
+    case EPD_ROT_270:
+        *out_x = (uint16_t)(w - 1u - y);
+        *out_y = x;
+        return true;
+    }
 }
 
 void epd_set_pixel(epd_t *epd, uint16_t x, uint16_t y, uint8_t color, uint8_t *canvas)
@@ -19,7 +92,21 @@ void epd_set_pixel(epd_t *epd, uint16_t x, uint16_t y, uint8_t color, uint8_t *c
         return;
     }
 
-    if (x >= epd->width || y >= epd->height)
+    const uint16_t logical_w = canvas_width(epd);
+    const uint16_t logical_h = canvas_height(epd);
+    if (x >= logical_w || y >= logical_h)
+    {
+        return;
+    }
+
+    uint16_t px = 0;
+    uint16_t py = 0;
+    if (!map_logical_to_physical(epd, x, y, &px, &py))
+    {
+        return;
+    }
+
+    if (px >= epd->width || py >= epd->height)
     {
         return;
     }
@@ -31,8 +118,8 @@ void epd_set_pixel(epd_t *epd, uint16_t x, uint16_t y, uint8_t color, uint8_t *c
     }
 
     const uint8_t pixels_per_byte = 8 / bits_per_pixel;
-    uint32_t index = (y * epd->width + x) / pixels_per_byte;
-    uint8_t shift = (pixels_per_byte - 1 - (x % pixels_per_byte)) * bits_per_pixel;
+    uint32_t index = ((uint32_t)py * (uint32_t)epd->width + (uint32_t)px) / pixels_per_byte;
+    uint8_t shift = (pixels_per_byte - 1 - (px % pixels_per_byte)) * bits_per_pixel;
 
     uint8_t mask = ((1 << bits_per_pixel) - 1) << shift;
     canvas[index] = (canvas[index] & ~mask) | ((color & ((1 << bits_per_pixel) - 1)) << shift);
@@ -164,26 +251,25 @@ void draw_line(epd_t *epd, uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, c
         return;
     }
 
-    int16_t dx = abs(x1 - x0);
-    int16_t dy = abs(y1 - y0);
+    int32_t x_start = x0;
+    int32_t y_start = y0;
+    int32_t x_end = x1;
+    int32_t y_end = y1;
 
-    int8_t sx = (x0 < x1) ? 1 : -1;
-    int8_t sy = (y0 < y1) ? 1 : -1;
+    int32_t dx = abs((int)(x_end - x_start));
+    int32_t dy = abs((int)(y_end - y_start));
 
-    int16_t err = dx - dy;
-    int16_t e2;
+    int32_t sx = (x_start < x_end) ? 1 : -1;
+    int32_t sy = (y_start < y_end) ? 1 : -1;
 
-    uint16_t x = x0;
-    uint16_t y = y0;
+    int32_t err = dx - dy;
+    int32_t e2;
 
     while (true)
     {
-        if (x < epd->width && y < epd->height)
-        {
-            epd_set_pixel(epd, x, y, color, canvas);
-        }
+        epd_set_pixel(epd, (uint16_t)x_start, (uint16_t)y_start, color, canvas);
 
-        if (x == x1 && y == y1)
+        if (x_start == x_end && y_start == y_end)
         {
             break;
         }
@@ -193,13 +279,13 @@ void draw_line(epd_t *epd, uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, c
         if (e2 > -dy)
         {
             err -= dy;
-            x += sx;
+            x_start += sx;
         }
 
         if (e2 < dx)
         {
             err += dx;
-            y += sy;
+            y_start += sy;
         }
     }
 }
@@ -224,16 +310,19 @@ void fill_rect(epd_t *epd, uint16_t x, uint16_t y, uint16_t width, uint16_t heig
         return;
     }
 
+    const uint16_t logical_w = canvas_width(epd);
+    const uint16_t logical_h = canvas_height(epd);
+
     uint32_t x_end = (uint32_t)x + (uint32_t)width;
     uint32_t y_end = (uint32_t)y + (uint32_t)height;
 
-    if (x_end > epd->width)
+    if (x_end > logical_w)
     {
-        x_end = epd->width;
+        x_end = logical_w;
     }
-    if (y_end > epd->height)
+    if (y_end > logical_h)
     {
-        y_end = epd->height;
+        y_end = logical_h;
     }
 
     for (uint16_t i = y; i < (uint16_t)y_end; i++)
@@ -340,10 +429,13 @@ void draw_image(epd_t *epd, uint16_t x_start, uint16_t y_start, const uint8_t *i
         return;
     }
 
+    const uint16_t logical_w = canvas_width(epd);
+    const uint16_t logical_h = canvas_height(epd);
+
     for (uint16_t y = 0; y < height; y++)
     {
         const uint32_t dst_y = (uint32_t)y_start + (uint32_t)y;
-        if (dst_y >= epd->height)
+        if (dst_y >= logical_h)
         {
             break;
         }
@@ -351,7 +443,7 @@ void draw_image(epd_t *epd, uint16_t x_start, uint16_t y_start, const uint8_t *i
         for (uint16_t x = 0; x < width; x++)
         {
             const uint32_t dst_x = (uint32_t)x_start + (uint32_t)x;
-            if (dst_x >= epd->width)
+            if (dst_x >= logical_w)
             {
                 break;
             }

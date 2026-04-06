@@ -1,5 +1,6 @@
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
 #include "pico/stdlib.h"
 #include <stdlib.h>
 #include "epd.h"
@@ -17,9 +18,10 @@
 #define TEST_CASE_5_NESTED_RECTS 5  // nested rectangles demo
 #define TEST_CASE_6_CIRCLE 6        // circle demo
 #define TEST_CASE_7_CIRCLE_FILLED 7 // circle filled demo
+#define TEST_CASE_8_IMAGE 8         // draw_image demo
 
 #ifndef TEST_CASE
-#define TEST_CASE TEST_CASE_7_CIRCLE_FILLED
+#define TEST_CASE TEST_CASE_0_BOXES
 #endif
 
 float read_onboard_temperature(bool toCelsius)
@@ -43,6 +45,25 @@ static void blink(uint32_t ms)
     gpio_put(PICO_DEFAULT_LED_PIN, 0);
 }
 
+static inline bool is_supported_depth(uint8_t bits_per_pixel)
+{
+    return bits_per_pixel != 0 && (8 % bits_per_pixel) == 0;
+}
+
+static inline void image_set_pixel(uint8_t *image, uint16_t width, uint16_t x, uint16_t y, uint8_t bits_per_pixel, uint8_t color)
+{
+    if (!image || !is_supported_depth(bits_per_pixel))
+    {
+        return;
+    }
+
+    const uint8_t pixels_per_byte = (uint8_t)(8u / bits_per_pixel);
+    const uint32_t index = ((uint32_t)y * (uint32_t)width + (uint32_t)x) / pixels_per_byte;
+    const uint8_t shift = (uint8_t)((pixels_per_byte - 1u - (x % pixels_per_byte)) * bits_per_pixel);
+    const uint8_t mask = (uint8_t)(((1u << bits_per_pixel) - 1u) << shift);
+    image[index] = (uint8_t)((image[index] & ~mask) | ((color & ((1u << bits_per_pixel) - 1u)) << shift));
+}
+
 int main()
 {
     static uint8_t canvas[EPD_2_13_WIDTH * EPD_2_13_HEIGHT / 4] = {0};
@@ -50,6 +71,7 @@ int main()
 
     epd_init(&epd);
     stdio_init_all();
+    epd.rotation = EPD_ROT_270;
 
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
@@ -92,6 +114,7 @@ int main()
 #elif TEST_CASE == 1
     adc_init();
     adc_set_temp_sensor_enabled(true);
+    fill_background(&epd, WHITE, canvas);
 
     char buffer[8] = {0};
     float temperature = read_onboard_temperature(true);
@@ -144,8 +167,8 @@ int main()
 #elif TEST_CASE == 3
     const color_t palette[] = {BLACK, RED, YELLOW};
     const int step = 16; /* spacing between rays */
-    const uint16_t w = epd.width;
-    const uint16_t h = epd.height;
+    const uint16_t w = canvas_width(&epd);
+    const uint16_t h = canvas_height(&epd);
     int idx = 0;
 
     fill_background(&epd, WHITE, canvas);
@@ -162,8 +185,8 @@ int main()
     draw_line(&epd, 0, 0, 0, h, palette[(idx++) % 3], canvas);
 
 #elif TEST_CASE == TEST_CASE_4_BANDS
-    const uint16_t w = epd.width;
-    const uint16_t h = epd.height;
+    const uint16_t w = canvas_width(&epd);
+    const uint16_t h = canvas_height(&epd);
 
     fill_background(&epd, WHITE, canvas);
 
@@ -180,8 +203,8 @@ int main()
 
 #elif TEST_CASE == TEST_CASE_5_NESTED_RECTS
 
-    const uint16_t w = epd.width;
-    const uint16_t h = epd.height;
+    const uint16_t w = canvas_width(&epd);
+    const uint16_t h = canvas_height(&epd);
 
     fill_background(&epd, WHITE, canvas);
 
@@ -315,7 +338,55 @@ int main()
         }
     }
 
+#elif TEST_CASE == TEST_CASE_8_IMAGE
+    const uint8_t bits_per_pixel = (uint8_t)epd.depth;
+    if (is_supported_depth(bits_per_pixel))
+    {
+        enum
+        {
+            IMG_W = 48,
+            IMG_H = 48
+        };
+
+        static uint8_t image[IMG_W * IMG_H] = {0}; // allocate for worst case (8bpp)
+        memset(image, 0, sizeof(image));
+        fill_background(&epd, WHITE, canvas);
+
+        const uint16_t w = canvas_width(&epd);
+        const uint16_t h = canvas_height(&epd);
+        const uint16_t x0 = (w > IMG_W) ? (uint16_t)((w - IMG_W) / 2) : 0;
+        const uint16_t y0 = (h > IMG_H) ? (uint16_t)((h - IMG_H) / 2) : 0;
+
+        for (uint16_t y = 0; y < IMG_H; y++)
+        {
+            for (uint16_t x = 0; x < IMG_W; x++)
+            {
+                color_t c = WHITE;
+
+                const bool border = (x == 0) || (y == 0) || (x == IMG_W - 1) || (y == IMG_H - 1);
+                if (border)
+                {
+                    c = BLACK;
+                }
+                else if (x == y || x + y == IMG_W - 1)
+                {
+                    c = RED;
+                }
+                else if (((x / 6) + (y / 6)) % 2 == 0)
+                {
+                    c = YELLOW;
+                }
+
+                image_set_pixel(image, IMG_W, x, y, bits_per_pixel, (uint8_t)c);
+            }
+        }
+
+        draw_image(&epd, x0, y0, image, IMG_W, IMG_H, canvas);
+        draw_rect(&epd, x0, y0, IMG_W, IMG_H, BLACK, canvas);
+        draw_text(&epd, 4, 4, "draw_image()", FONT_TAHOMA_12, BLACK, 2, canvas);
+    }
 #endif
+
     epd_display(&epd, canvas);
     epd_sleep(&epd);
 

@@ -21,6 +21,14 @@ typedef enum {
     DEPTH_8BIT = 8, 
 } depth_t;
 
+typedef enum
+{
+    EPD_ROT_0 = 0,
+    EPD_ROT_90,
+    EPD_ROT_180,
+    EPD_ROT_270,
+} epd_rotation_t;
+
 /*************************************/
 /*         DATA STRUCTURE            */
 /*************************************/
@@ -43,6 +51,7 @@ typedef struct epd_t
     uint16_t height;
     pin_cfg_t pin_cfg;
     depth_t depth;
+    epd_rotation_t rotation;
     spi_inst_t *spi_port;
 } epd_t;
 
