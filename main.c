@@ -16,10 +16,10 @@
 #define TEST_CASE_4_BANDS 4         // horizontal color bands
 #define TEST_CASE_5_NESTED_RECTS 5  // nested rectangles demo
 #define TEST_CASE_6_CIRCLE 6        // circle demo
-#define TEST_CASE_7_CIRCLE_FILLED 7 // circle demo
+#define TEST_CASE_7_CIRCLE_FILLED 7 // circle filled demo
 
 #ifndef TEST_CASE
-#define TEST_CASE TEST_CASE_0_BOXES
+#define TEST_CASE TEST_CASE_7_CIRCLE_FILLED
 #endif
 
 float read_onboard_temperature(bool toCelsius)
@@ -138,7 +138,7 @@ int main()
     draw_text_with_bg(&epd, 3, 134, "hello", FONT_TAHOMA_24, YELLOW, 3, BLACK, canvas);
     draw_text_with_bg(&epd, 3, 166, "world", FONT_TAHOMA_24, YELLOW, 3, BLACK, canvas);
 
-    draw_text_with_bg(&epd, 3, 198, "asdsadd", FONT_TAHOMA_24, WHITE, 3, BLACK, canvas);
+    draw_text_with_bg(&epd, 3, 198, "hello", FONT_TAHOMA_24, WHITE, 3, BLACK, canvas);
     draw_text_with_bg(&epd, 3, 230, "world", FONT_TAHOMA_24, WHITE, 3, BLACK, canvas);
 
 #elif TEST_CASE == 3
