@@ -1,9 +1,13 @@
 #pragma once
 
 #include <stdlib.h>
+#include <stdint.h>
+#include <limits.h>
 #include "epd.h"
 
+#ifndef CHAR_BIT
 #define CHAR_BIT 8
+#endif
 
 #define USE_FONT_CAMBRIA_16
 
@@ -104,6 +108,6 @@ void fill_rect(epd_t *epd, uint16_t x, uint16_t y, uint16_t width, uint16_t heig
 void draw_circle(epd_t *epd, uint16_t x_center, uint16_t y_center, uint16_t radius, color_t color, uint8_t *canvas);
 void fill_circle(epd_t *epd, uint16_t x_center, uint16_t y_center, uint16_t radius, color_t color, uint8_t *canvas);
 
-void draw_image(epd_t *epd, uint16_t x_start, uint16_t y_start, const uint8_t *image_data, uint16_t width, uint16_t height, uint8_t *image);
+void draw_image(epd_t *epd, uint16_t x_start, uint16_t y_start, const uint8_t *image_data, uint16_t width, uint16_t height, uint8_t *canvas);
 
 font_property_t font_properties(text_type_t type);

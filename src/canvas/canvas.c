@@ -1,16 +1,36 @@
 #include "canvas.h"
-#include "epd_2_13.h"
+#include <stdbool.h>
+#include <string.h>
 
-static inline bool is_not_printable(char c, font_property_t font_property)
+static inline bool is_supported_depth(uint8_t bits_per_pixel)
+{
+    return bits_per_pixel != 0 && (8 % bits_per_pixel) == 0;
+}
+
+static inline bool is_not_printable(uint8_t c, font_property_t font_property)
 {
     return c < font_property.start || c > font_property.end;
 }
 
 void epd_set_pixel(epd_t *epd, uint16_t x, uint16_t y, uint8_t color, uint8_t *canvas)
 {
-    uint8_t bits_per_pixel = epd->depth;
-    uint8_t pixels_per_byte = 8 / bits_per_pixel;
+    if (!epd || !canvas)
+    {
+        return;
+    }
 
+    if (x >= epd->width || y >= epd->height)
+    {
+        return;
+    }
+
+    const uint8_t bits_per_pixel = (uint8_t)epd->depth;
+    if (!is_supported_depth(bits_per_pixel))
+    {
+        return;
+    }
+
+    const uint8_t pixels_per_byte = 8 / bits_per_pixel;
     uint32_t index = (y * epd->width + x) / pixels_per_byte;
     uint8_t shift = (pixels_per_byte - 1 - (x % pixels_per_byte)) * bits_per_pixel;
 
@@ -25,22 +45,40 @@ void fill_background(epd_t *epd, color_t color, uint8_t *canvas)
         return;
     }
 
-    const int pixel_per_byte = CHAR_BIT / epd->depth;
-
-    const uint32_t total_pixels = epd->width * epd->height;
-
-    for (uint16_t i = 0; i < total_pixels / pixel_per_byte; i++)
+    const uint8_t bits_per_pixel = (uint8_t)epd->depth;
+    if (!is_supported_depth(bits_per_pixel))
     {
-        canvas[i] = (color << 6) | (color << 4) | (color << 2) | color;
+        return;
     }
+
+    const uint32_t total_pixels = (uint32_t)epd->width * (uint32_t)epd->height;
+    const uint8_t pixels_per_byte = (uint8_t)(CHAR_BIT / bits_per_pixel);
+    const uint32_t total_bytes = (total_pixels + pixels_per_byte - 1u) / pixels_per_byte;
+
+    const uint8_t pixel_mask = (uint8_t)((1u << bits_per_pixel) - 1u);
+    const uint8_t packed_color = (uint8_t)color & pixel_mask;
+
+    uint8_t packed_byte = 0;
+    for (uint8_t i = 0; i < pixels_per_byte; i++)
+    {
+        const uint8_t shift = (uint8_t)((pixels_per_byte - 1u - i) * bits_per_pixel);
+        packed_byte |= (uint8_t)(packed_color << shift);
+    }
+
+    memset(canvas, packed_byte, (size_t)total_bytes);
 }
 
-void draw_text(epd_t *epd, uint16_t x, uint16_t y, const char *text, text_type_t type, color_t color, uint8_t gap, uint8_t *canvas)
+static void draw_text_impl(epd_t *epd, uint16_t x, uint16_t y, const char *text, text_type_t type, color_t color, uint8_t gap, bool with_background, color_t background, uint8_t *canvas)
 {
     if (!epd || !text || !canvas)
         return;
 
     const font_property_t font = font_properties(type);
+    if (!font.pointer || font.width == 0 || font.height == 0 || font.length == 0)
+    {
+        return;
+    }
+
     const uint8_t mask = 0b00000001;
 
     uint32_t offset_array = 0;
@@ -49,10 +87,11 @@ void draw_text(epd_t *epd, uint16_t x, uint16_t y, const char *text, text_type_t
 
     for (const char *p = text; *p != '\0'; ++p)
     {
-        if (is_not_printable(*p, font))
+        const uint8_t c = (uint8_t)*p;
+        if (is_not_printable(c, font))
             continue;
 
-        offset_array = (*p - font.start) * font.length;
+        offset_array = (uint32_t)(c - font.start) * (uint32_t)font.length;
         uint32_t offset_row = 0;
 
         if (font.type == proportional)
@@ -76,65 +115,7 @@ void draw_text(epd_t *epd, uint16_t x, uint16_t y, const char *text, text_type_t
                 {
                     epd_set_pixel(epd, x + col, y + row, color, canvas);
                 }
-
-                offset_bit++;
-
-                if (offset_bit == 8)
-                {
-                    offset_bit = 0;
-                    temp_offset_row++;
-                }
-            }
-
-            offset_row += (font.width + 7) / 8;
-        }
-
-        x += width + gap;
-    }
-}
-
-void draw_text_with_bg(epd_t *epd, uint16_t x, uint16_t y, const char *text, text_type_t type, color_t color, uint8_t gap, color_t background, uint8_t *canvas)
-{
-    if (!epd || !text || !canvas)
-        return;
-
-    const font_property_t font = font_properties(type);
-    const uint8_t mask = 0b00000001;
-
-    uint32_t offset_array = 0;
-    uint8_t offset_bit = 0;
-    uint16_t width = font.width;
-
-    for (const char *p = text; *p != '\0'; ++p)
-    {
-        if (is_not_printable(*p, font))
-            continue;
-
-        offset_array = (*p - font.start) * font.length;
-        uint32_t offset_row = 0;
-
-        if (font.type == proportional)
-        {
-            width = font.pointer[offset_array];
-            offset_array++;
-        }
-        else
-        {
-            width = font.width;
-        }
-
-        for (uint16_t row = 0; row < font.height; row++)
-        {
-            offset_bit = 0;
-            uint32_t temp_offset_row = offset_row;
-
-            for (uint16_t col = 0; col < width; col++)
-            {
-                if ((font.pointer[offset_array + temp_offset_row] >> offset_bit) & mask)
-                {
-                    epd_set_pixel(epd, x + col, y + row, color, canvas);
-                }
-                else
+                else if (with_background)
                 {
                     epd_set_pixel(epd, x + col, y + row, background, canvas);
                 }
@@ -151,16 +132,29 @@ void draw_text_with_bg(epd_t *epd, uint16_t x, uint16_t y, const char *text, tex
             offset_row += (font.width + 7) / 8;
         }
 
-        for (uint16_t i = 0; i < gap; i++)
+        if (with_background)
         {
-            for (size_t j = 0; j < font.height; j++)
+            for (uint16_t i = 0; i < gap; i++)
             {
-                epd_set_pixel(epd, x + width + i, y + j, background, canvas);
+                for (uint16_t j = 0; j < font.height; j++)
+                {
+                    epd_set_pixel(epd, x + width + i, y + j, background, canvas);
+                }
             }
         }
 
         x += width + gap;
     }
+}
+
+void draw_text(epd_t *epd, uint16_t x, uint16_t y, const char *text, text_type_t type, color_t color, uint8_t gap, uint8_t *canvas)
+{
+    draw_text_impl(epd, x, y, text, type, color, gap, false, WHITE, canvas);
+}
+
+void draw_text_with_bg(epd_t *epd, uint16_t x, uint16_t y, const char *text, text_type_t type, color_t color, uint8_t gap, color_t background, uint8_t *canvas)
+{
+    draw_text_impl(epd, x, y, text, type, color, gap, true, background, canvas);
 }
 
 void draw_line(epd_t *epd, uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, color_t color, uint8_t *canvas)
@@ -225,18 +219,27 @@ void draw_rect(epd_t *epd, uint16_t x, uint16_t y, uint16_t width, uint16_t heig
 
 void fill_rect(epd_t *epd, uint16_t x, uint16_t y, uint16_t width, uint16_t height, color_t color, uint8_t *canvas)
 {
-    if (!epd)
+    if (!epd || !canvas || width == 0 || height == 0)
     {
         return;
     }
 
-    for (uint16_t i = y; i < y + height; i++)
-    {
-        for (uint16_t j = x; j < x + width; j++)
-        {
-            if (i > epd->height || j > epd->width)
-                continue;
+    uint32_t x_end = (uint32_t)x + (uint32_t)width;
+    uint32_t y_end = (uint32_t)y + (uint32_t)height;
 
+    if (x_end > epd->width)
+    {
+        x_end = epd->width;
+    }
+    if (y_end > epd->height)
+    {
+        y_end = epd->height;
+    }
+
+    for (uint16_t i = y; i < (uint16_t)y_end; i++)
+    {
+        for (uint16_t j = x; j < (uint16_t)x_end; j++)
+        {
             epd_set_pixel(epd, j, i, color, canvas);
         }
     }
@@ -244,6 +247,11 @@ void fill_rect(epd_t *epd, uint16_t x, uint16_t y, uint16_t width, uint16_t heig
 
 void draw_circle(epd_t *epd, uint16_t x_center, uint16_t y_center, uint16_t radius, color_t color, uint8_t *canvas)
 {
+    if (!epd || !canvas || radius == 0)
+    {
+        return;
+    }
+
     int x = 0, y = radius;
     int d = 3 - 2 * radius;
 
@@ -273,7 +281,7 @@ void draw_circle(epd_t *epd, uint16_t x_center, uint16_t y_center, uint16_t radi
 
 void fill_circle(epd_t *epd, uint16_t x_center, uint16_t y_center, uint16_t radius, color_t color, uint8_t *canvas)
 {
-    if (!epd || radius == 0)
+    if (!epd || !canvas || radius == 0)
     {
         return;
     }
@@ -310,9 +318,55 @@ void fill_circle(epd_t *epd, uint16_t x_center, uint16_t y_center, uint16_t radi
     }
 }
 
+static inline uint8_t get_packed_pixel(const uint8_t *buffer, uint16_t width, uint16_t x, uint16_t y, uint8_t bits_per_pixel)
+{
+    const uint8_t pixels_per_byte = (uint8_t)(8u / bits_per_pixel);
+    const uint32_t index = ((uint32_t)y * (uint32_t)width + (uint32_t)x) / pixels_per_byte;
+    const uint8_t shift = (uint8_t)((pixels_per_byte - 1u - (x % pixels_per_byte)) * bits_per_pixel);
+    const uint8_t mask = (uint8_t)((1u << bits_per_pixel) - 1u);
+    return (uint8_t)((buffer[index] >> shift) & mask);
+}
+
+void draw_image(epd_t *epd, uint16_t x_start, uint16_t y_start, const uint8_t *image_data, uint16_t width, uint16_t height, uint8_t *canvas)
+{
+    if (!epd || !canvas || !image_data || width == 0 || height == 0)
+    {
+        return;
+    }
+
+    const uint8_t bits_per_pixel = (uint8_t)epd->depth;
+    if (!is_supported_depth(bits_per_pixel))
+    {
+        return;
+    }
+
+    for (uint16_t y = 0; y < height; y++)
+    {
+        const uint32_t dst_y = (uint32_t)y_start + (uint32_t)y;
+        if (dst_y >= epd->height)
+        {
+            break;
+        }
+
+        for (uint16_t x = 0; x < width; x++)
+        {
+            const uint32_t dst_x = (uint32_t)x_start + (uint32_t)x;
+            if (dst_x >= epd->width)
+            {
+                break;
+            }
+
+            const uint8_t pixel = get_packed_pixel(image_data, width, x, y, bits_per_pixel);
+            epd_set_pixel(epd, (uint16_t)dst_x, (uint16_t)dst_y, pixel, canvas);
+        }
+    }
+}
+
 font_property_t font_properties(text_type_t type)
 {
     font_property_t font_property;
+    memset(&font_property, 0, sizeof(font_property));
+    font_property.type = monospace;
 
     switch (type)
     {
@@ -325,7 +379,7 @@ font_property_t font_properties(text_type_t type)
         font_property.length = FONT_CAMBRIA_16_ARRAY_LENGTH / FONT_CAMBRIA_16_LENGTH;
         font_property.type = FONT_CAMBRIA_16_FONT_TYPE;
         font_property.start = FONT_CAMBRIA_16_START_CHAR;
-        font_property.end = FONT_CAMBRIA_16_START_CHAR + FONT_CAMBRIA_16_LENGTH;
+        font_property.end = (uint8_t)(FONT_CAMBRIA_16_START_CHAR + FONT_CAMBRIA_16_LENGTH - 1);
         break;
 #endif
 
@@ -337,7 +391,7 @@ font_property_t font_properties(text_type_t type)
         font_property.length = FONT_TAHOMA_8_ARRAY_LENGTH / FONT_TAHOMA_8_LENGTH;
         font_property.type = FONT_TAHOMA_8_FONT_TYPE;
         font_property.start = FONT_TAHOMA_8_START_CHAR;
-        font_property.end = FONT_TAHOMA_8_START_CHAR + FONT_TAHOMA_8_LENGTH;
+        font_property.end = (uint8_t)(FONT_TAHOMA_8_START_CHAR + FONT_TAHOMA_8_LENGTH - 1);
         break;
 #endif
 
@@ -349,7 +403,7 @@ font_property_t font_properties(text_type_t type)
         font_property.length = FONT_TAHOMA_12_ARRAY_LENGTH / FONT_TAHOMA_12_LENGTH;
         font_property.type = FONT_TAHOMA_12_FONT_TYPE;
         font_property.start = FONT_TAHOMA_12_START_CHAR;
-        font_property.end = FONT_TAHOMA_12_START_CHAR + FONT_TAHOMA_12_LENGTH;
+        font_property.end = (uint8_t)(FONT_TAHOMA_12_START_CHAR + FONT_TAHOMA_12_LENGTH - 1);
         break;
 #endif
 
@@ -361,7 +415,7 @@ font_property_t font_properties(text_type_t type)
         font_property.length = FONT_TAHOMA_16_ARRAY_LENGTH / FONT_TAHOMA_16_LENGTH;
         font_property.type = FONT_TAHOMA_16_FONT_TYPE;
         font_property.start = FONT_TAHOMA_16_START_CHAR;
-        font_property.end = FONT_TAHOMA_16_START_CHAR + FONT_TAHOMA_16_LENGTH;
+        font_property.end = (uint8_t)(FONT_TAHOMA_16_START_CHAR + FONT_TAHOMA_16_LENGTH - 1);
         break;
 #endif
 
@@ -373,7 +427,7 @@ font_property_t font_properties(text_type_t type)
         font_property.length = FONT_TAHOMA_24_ARRAY_LENGTH / FONT_TAHOMA_24_LENGTH;
         font_property.type = FONT_TAHOMA_24_FONT_TYPE;
         font_property.start = FONT_TAHOMA_24_START_CHAR;
-        font_property.end = FONT_TAHOMA_24_START_CHAR + FONT_TAHOMA_24_LENGTH;
+        font_property.end = (uint8_t)(FONT_TAHOMA_24_START_CHAR + FONT_TAHOMA_24_LENGTH - 1);
         break;
 #endif
 
@@ -385,7 +439,7 @@ font_property_t font_properties(text_type_t type)
         font_property.length = FONT_NOTO_KUFI_ARABIC_8_ARRAY_LENGTH / FONT_NOTO_KUFI_ARABIC_8_LENGTH;
         font_property.type = FONT_NOTO_KUFI_ARABIC_8_FONT_TYPE;
         font_property.start = FONT_NOTO_KUFI_ARABIC_8_START_CHAR;
-        font_property.end = FONT_NOTO_KUFI_ARABIC_8_START_CHAR + FONT_NOTO_KUFI_ARABIC_8_LENGTH;
+        font_property.end = (uint8_t)(FONT_NOTO_KUFI_ARABIC_8_START_CHAR + FONT_NOTO_KUFI_ARABIC_8_LENGTH - 1);
         break;
 #endif
 
@@ -397,21 +451,13 @@ font_property_t font_properties(text_type_t type)
         font_property.length = FONT_NOTO_KUFI_ARABIC_12_ARRAY_LENGTH / FONT_NOTO_KUFI_ARABIC_12_LENGTH;
         font_property.type = FONT_NOTO_KUFI_ARABIC_12_FONT_TYPE;
         font_property.start = FONT_NOTO_KUFI_ARABIC_12_START_CHAR;
-        font_property.end = FONT_NOTO_KUFI_ARABIC_12_START_CHAR + FONT_NOTO_KUFI_ARABIC_12_LENGTH;
+        font_property.end = (uint8_t)(FONT_NOTO_KUFI_ARABIC_12_START_CHAR + FONT_NOTO_KUFI_ARABIC_12_LENGTH - 1);
         break;
 #endif
+
+    default:
+        break;
     }
 
     return font_property;
 }
-
-// void draw_image(epd_t *epd, uint16_t x_start, uint16_t y_start, const uint8_t *image_data, uint16_t width, uint16_t height)
-// {
-//     if (!epd || !image_data || width == 0 || height == 0)
-//     {
-//         return;
-//     }
-
-//     epd_set_window(epd, 0, 0, width - 1, height - 1);
-//     epd_flush(epd, image_data, height * width * 2);
-// }
