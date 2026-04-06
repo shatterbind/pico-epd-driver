@@ -1,42 +1,25 @@
-# Electronic paper driver (Pico RP2040)
+﻿# Electronic paper driver (Pico RP2040)
 
-Hardware driver and simple graphics canvas, suupported displays:
--  2.13" e-paper display
+Small e-paper (EPD) driver + graphics canvas for Raspberry Pi Pico / RP2040 (Pico SDK). Currently targets a 2.13" panel via `src/epd_2_13`.
 
-**Short description:** This repository contains a small graphics canvas and driver glue for driving e-paper (EPD) panel from a Raspberry Pi Pico / RP2040 using the Pico SDK. It provides drawing primitives, text rendering (multiple fonts), and a device-specific initialization sequence.
+## Supported displays
+- 2.13 inch (MH-ET LIVE)
 
-## Contents
-- `main.c` — example/demo app that exercises the canvas and display (select `TEST_CASE` to try different demos).
-- `src/canvas` — drawing primitives and font wrappers (`canvas.h`, `canvas.c`, fonts/).
-- `src/common/epd.h` — hardware abstraction for the EPD.
-- `src/epd_2_13` — device-specific init sequence and pin defaults for the 2.13" panel.
+## Connection (2.13" panel)
 
-## Quick Start (build & flash)
+Default pin mapping (override via `EPD_2_13_PIN_*` macros in `src/epd_2_13/epd_2_13.h`):
 
-Requirements:
-- Pico SDK installed and configured.
-- `cmake` and `ninja` available (the workspace includes VS Code tasks for build/flash).
+| EPD signal  |    Pico GPIO | Notes                                                   |
+| ----------- | -----------: | ------------------------------------------------------- |
+| `CS`        |          `9` | SPI chip-select                                         |
+| `SCK/CLK`   |         `10` | SPI1 SCK                                                |
+| `MOSI/DIN`  |         `11` | SPI1 TX                                                 |
+| `RST/RESET` |         `12` | Reset                                                   |
+| `BUSY`      |         `13` | Busy (input)                                            |
+| `DC`        | user-defined | Passed to `epd_create(dc_gpio)` (example uses GPIO `8`) |
+| `VCC`       |        `3V3` | Power (per your panel’s spec)                           |
+| `GND`       |        `GND` | Ground                                                  |
 
-Example build (powershell):
-
-```powershell
-mkdir build
-cd build
-cmake .. -G Ninja
-ninja
-```
-
-Flash example using `picotool` (or use provided VS Code tasks):
-
-```powershell
-picotool.exe load ..\build\pico_epd_driver.uf2 -fx
-```
-
-## Usage
-- Edit `main.c` to pick a `TEST_CASE` or to add custom drawing calls using the `canvas` and `epd` APIs.
-- Typical flow: `epd_create()` -> `epd_init()` -> draw into `canvas` buffer via `canvas` functions -> `epd_display()` -> `epd_sleep()`.
-
-## License
-See `LICENSE` in the repository root.
-
-If you want, I can also add more examples, doxygen generation, or a developer guide.
+Notes:
+- `MISO` is not used.
+- The Pico is 3.3V logic; follow your panel vendor’s guidance for power/level shifting if needed.
