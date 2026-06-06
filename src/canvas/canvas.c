@@ -17,12 +17,10 @@ uint16_t canvas_width(const epd_t *epd)
     switch (epd->rotation)
     {
     case EPD_ROT_90:
-    case EPD_ROT_270:
-        return epd->height;
+    case EPD_ROT_270: return epd->height;
     case EPD_ROT_0:
     case EPD_ROT_180:
-    default:
-        return epd->width;
+    default: return epd->width;
     }
 }
 
