@@ -1,7 +1,7 @@
 #include "hardware/spi.h"
 #include "pico/stdlib.h"
 
-#define EPD_2_13_WIDTH 124
+#define EPD_2_13_WIDTH 122
 #define EPD_2_13_HEIGHT 250
 
 #ifndef EPD_2_13_PIN_CS
