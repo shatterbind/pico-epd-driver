@@ -21,7 +21,7 @@
 #define TEST_CASE_8_IMAGE 8         // draw_image demo
 
 #ifndef TEST_CASE
-#define TEST_CASE TEST_CASE_0_BOXES
+#define TEST_CASE TEST_CASE_1_TEXT
 #endif
 
 float read_onboard_temperature(bool toCelsius)
@@ -64,35 +64,24 @@ static inline void image_set_pixel(uint8_t *image, uint16_t width, uint16_t x, u
     image[index] = (uint8_t)((image[index] & ~mask) | ((color & ((1u << bits_per_pixel) - 1u)) << shift));
 }
 
-int main()
-{
-    static uint8_t canvas[EPD_2_13_WIDTH * EPD_2_13_HEIGHT / 4] = {0};
-    epd_t epd = epd_create(8);
-
-    epd_init(&epd);
-    stdio_init_all();
-    epd.rotation = EPD_ROT_270;
-
-    gpio_init(PICO_DEFAULT_LED_PIN);
-    gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
-
-    // code
-    blink(1000);
-
 #if TEST_CASE == 0
-    const int cols = 5;
-    const int rows = 10;
+static void run_test_case_0_boxes(epd_t *epd, uint8_t *canvas)
+{
+    const uint16_t w = canvas_width(epd);
+    const uint16_t h = canvas_height(epd);
     const int box_w = 23;
     const int box_h = 23;
     const int gap = 2;
     const int step_x = box_w + gap;
     const int step_y = box_h + gap;
-    const int start_x = 0;
-    const int start_y = 0;
+    const int cols = w / step_x;
+    const int rows = h / step_y;
+    const int start_x = (w - (cols * step_x - gap)) / 2;
+    const int start_y = (h - (rows * step_y - gap)) / 2;
     const color_t palette[] = {YELLOW, RED, BLACK};
     const int palette_len = sizeof(palette) / sizeof(palette[0]);
 
-    fill_background(&epd, WHITE, canvas);
+    fill_background(epd, WHITE, canvas);
 
     uint32_t rnd = (uint32_t)to_us_since_boot(get_absolute_time());
     if (rnd == 0)
@@ -108,105 +97,125 @@ int main()
             int color = palette[rnd % palette_len];
             int x = start_x + cx * step_x;
             int y = start_y + ry * step_y;
-            fill_rect(&epd, x, y, box_w, box_h, color, canvas);
+            fill_rect(epd, x, y, box_w, box_h, color, canvas);
         }
     }
+}
 #elif TEST_CASE == 1
+static void run_test_case_1_text(epd_t *epd, uint8_t *canvas)
+{
     adc_init();
     adc_set_temp_sensor_enabled(true);
-    fill_background(&epd, WHITE, canvas);
+    fill_background(epd, WHITE, canvas);
 
     char buffer[8] = {0};
     float temperature = read_onboard_temperature(true);
 
     snprintf(buffer, sizeof(buffer), "%.2f", temperature);
 
-    draw_text(&epd, 0, 0, "Temperature:", FONT_TAHOMA_12, BLACK, 3, canvas);
-    draw_text(&epd, 0, 16, buffer, FONT_TAHOMA_12, BLACK, 3, canvas);
+    int x1 = 0;
+    int x2 = (canvas_height(epd) < 150) ? canvas_width(epd) / 2 : 0;
+    int y2 = (canvas_height(epd) < 150) ? 0 : 125;
 
-    draw_text(&epd, 0, 32, "hello", NOTO_KUFI_ARABIC_8, YELLOW, 3, canvas);
-    draw_text(&epd, 0, 42, "world", NOTO_KUFI_ARABIC_8, YELLOW, 3, canvas);
+    draw_text(epd, x1, 0, "Temperature:", FONT_TAHOMA_12, BLACK, 3, canvas);
+    draw_text(epd, x1, 16, buffer, FONT_TAHOMA_12, BLACK, 3, canvas);
 
-    draw_text(&epd, 0, 55, "hello", FONT_TAHOMA_12, RED, 3, canvas);
-    draw_text(&epd, 0, 70, "world", FONT_TAHOMA_12, RED, 3, canvas);
+    draw_text(epd, x1, 32, "hello", NOTO_KUFI_ARABIC_8, YELLOW, 3, canvas);
+    draw_text(epd, x1, 42, "world", NOTO_KUFI_ARABIC_8, YELLOW, 3, canvas);
 
-    draw_text(&epd, 0, 84, "hello", FONT_TAHOMA_16, RED, 3, canvas);
-    draw_text(&epd, 0, 105, "world", FONT_TAHOMA_16, RED, 3, canvas);
+    draw_text(epd, x1, 55, "hello", FONT_TAHOMA_12, RED, 3, canvas);
+    draw_text(epd, x1, 70, "world", FONT_TAHOMA_12, RED, 3, canvas);
 
-    draw_text(&epd, 0, 125, "hello", FONT_TAHOMA_24, BLACK, 3, canvas);
-    draw_text(&epd, 0, 150, "world", FONT_TAHOMA_24, BLACK, 3, canvas);
+    draw_text(epd, x1, 84, "hello", FONT_TAHOMA_16, RED, 3, canvas);
+    draw_text(epd, x1, 105, "world", FONT_TAHOMA_16, RED, 3, canvas);
+
+    draw_text(epd, x2, y2, "hello", FONT_TAHOMA_24, BLACK, 3, canvas);
+    draw_text(epd, x2, y2 + 25, "world", FONT_TAHOMA_24, BLACK, 3, canvas);
+}
 #elif TEST_CASE == 2
+static void run_test_case_2_text_bg(epd_t *epd, uint8_t *canvas)
+{
     adc_init();
     adc_set_temp_sensor_enabled(true);
 
     char buffer[8] = {0};
     float temperature = read_onboard_temperature(true);
 
-    fill_background(&epd, WHITE, canvas);
+    fill_background(epd, WHITE, canvas);
 
     snprintf(buffer, sizeof(buffer), "%.2f", temperature);
 
-    draw_text_with_bg(&epd, 3, 0, "Temperature:", FONT_TAHOMA_12, BLACK, 3, YELLOW, canvas);
-    draw_text_with_bg(&epd, 3, 16, buffer, FONT_TAHOMA_12, BLACK, 3, YELLOW, canvas);
+    int x1 = 3;
+    int x2 = (canvas_height(epd) < 250) ? canvas_width(epd) / 2 : 3;
+    int y2 = (canvas_height(epd) < 250) ? 0 : 134;
+    int y3 = (canvas_height(epd) < 250) ? y2 + 64 : 198;
 
-    draw_text_with_bg(&epd, 3, 32, "hello", NOTO_KUFI_ARABIC_8, YELLOW, 3, BLACK, canvas);
-    draw_text_with_bg(&epd, 3, 46, "world", NOTO_KUFI_ARABIC_8, YELLOW, 3, BLACK, canvas);
+    draw_text_with_bg(epd, x1, 0, "Temperature:", FONT_TAHOMA_12, BLACK, 3, YELLOW, canvas);
+    draw_text_with_bg(epd, x1, 16, buffer, FONT_TAHOMA_12, BLACK, 3, YELLOW, canvas);
 
-    draw_text_with_bg(&epd, 3, 60, "hello", FONT_TAHOMA_12, RED, 3, BLACK, canvas);
-    draw_text_with_bg(&epd, 3, 76, "world", FONT_TAHOMA_12, RED, 3, BLACK, canvas);
+    draw_text_with_bg(epd, x1, 32, "hello", NOTO_KUFI_ARABIC_8, YELLOW, 3, BLACK, canvas);
+    draw_text_with_bg(epd, x1, 46, "world", NOTO_KUFI_ARABIC_8, YELLOW, 3, BLACK, canvas);
 
-    draw_text_with_bg(&epd, 3, 92, "hello", FONT_TAHOMA_16, BLACK, 3, RED, canvas);
-    draw_text_with_bg(&epd, 3, 113, "world", FONT_TAHOMA_16, BLACK, 3, RED, canvas);
+    draw_text_with_bg(epd, x1, 60, "hello", FONT_TAHOMA_12, RED, 3, BLACK, canvas);
+    draw_text_with_bg(epd, x1, 76, "world", FONT_TAHOMA_12, RED, 3, BLACK, canvas);
 
-    draw_text_with_bg(&epd, 3, 134, "hello", FONT_TAHOMA_24, YELLOW, 3, BLACK, canvas);
-    draw_text_with_bg(&epd, 3, 166, "world", FONT_TAHOMA_24, YELLOW, 3, BLACK, canvas);
+    draw_text_with_bg(epd, x1, 92, "hello", FONT_TAHOMA_16, BLACK, 3, RED, canvas);
+    draw_text_with_bg(epd, x1, 113, "world", FONT_TAHOMA_16, BLACK, 3, RED, canvas);
 
-    draw_text_with_bg(&epd, 3, 198, "hello", FONT_TAHOMA_24, WHITE, 3, BLACK, canvas);
-    draw_text_with_bg(&epd, 3, 230, "world", FONT_TAHOMA_24, WHITE, 3, BLACK, canvas);
+    draw_text_with_bg(epd, x2, y2, "hello", FONT_TAHOMA_24, YELLOW, 3, BLACK, canvas);
+    draw_text_with_bg(epd, x2, y2 + 32, "world", FONT_TAHOMA_24, YELLOW, 3, BLACK, canvas);
 
+    draw_text_with_bg(epd, x2, y3, "hello", FONT_TAHOMA_24, WHITE, 3, BLACK, canvas);
+    draw_text_with_bg(epd, x2, y3 + 32, "world", FONT_TAHOMA_24, WHITE, 3, BLACK, canvas);
+}
 #elif TEST_CASE == 3
+static void run_test_case_3_rays(epd_t *epd, uint8_t *canvas)
+{
     const color_t palette[] = {BLACK, RED, YELLOW};
     const int step = 16; /* spacing between rays */
-    const uint16_t w = canvas_width(&epd);
-    const uint16_t h = canvas_height(&epd);
+    const uint16_t w = canvas_width(epd);
+    const uint16_t h = canvas_height(epd);
     int idx = 0;
 
-    fill_background(&epd, WHITE, canvas);
+    fill_background(epd, WHITE, canvas);
 
     for (int x = step; x < w; x += step)
-        draw_line(&epd, 0, 0, x, 0, palette[(idx++) % 3], canvas);
+        draw_line(epd, 0, 0, x, 0, palette[(idx++) % 3], canvas);
 
     for (int y = step; y < h; y += step)
-        draw_line(&epd, 0, 0, w - 1, y, palette[(idx++) % 3], canvas);
+        draw_line(epd, 0, 0, w - 1, y, palette[(idx++) % 3], canvas);
 
     for (int x = w - 1 - step; x >= 0; x -= step)
-        draw_line(&epd, 0, 0, x, h - 1, palette[(idx++) % 3], canvas);
+        draw_line(epd, 0, 0, x, h - 1, palette[(idx++) % 3], canvas);
 
-    draw_line(&epd, 0, 0, 0, h, palette[(idx++) % 3], canvas);
-
+    draw_line(epd, 0, 0, 0, h, palette[(idx++) % 3], canvas);
+}
 #elif TEST_CASE == TEST_CASE_4_BANDS
-    const uint16_t w = canvas_width(&epd);
-    const uint16_t h = canvas_height(&epd);
+static void run_test_case_4_bands(epd_t *epd, uint8_t *canvas)
+{
+    const uint16_t w = canvas_width(epd);
+    const uint16_t h = canvas_height(epd);
 
-    fill_background(&epd, WHITE, canvas);
+    fill_background(epd, WHITE, canvas);
 
     for (int y = 0, band = 0; y < h; y += 6, ++band)
     {
         color_t c = (band % 3 == 0) ? BLACK : ((band % 3 == 1) ? RED : YELLOW);
-        draw_line(&epd, 0, y, w - 1, y, c, canvas);
+        draw_line(epd, 0, y, w - 1, y, c, canvas);
 
         if (y + 1 < h)
         {
-            draw_line(&epd, 0, y + 1, w - 1, y + 1, c, canvas);
+            draw_line(epd, 0, y + 1, w - 1, y + 1, c, canvas);
         }
     }
-
+}
 #elif TEST_CASE == TEST_CASE_5_NESTED_RECTS
+static void run_test_case_5_nested_rects(epd_t *epd, uint8_t *canvas)
+{
+    const uint16_t w = canvas_width(epd);
+    const uint16_t h = canvas_height(epd);
 
-    const uint16_t w = canvas_width(&epd);
-    const uint16_t h = canvas_height(&epd);
-
-    fill_background(&epd, WHITE, canvas);
+    fill_background(epd, WHITE, canvas);
 
     const int cols = 6;
     const int rows = 6;
@@ -248,16 +257,21 @@ int main()
             int x = start_x_adj + cx * (eff_box_w + gap);
             int y = start_y + ry * (eff_box_h + gap);
 
-            draw_rect(&epd, x, y, (uint16_t)eff_box_w, (uint16_t)eff_box_h, c, canvas);
+            draw_rect(epd, x, y, (uint16_t)eff_box_w, (uint16_t)eff_box_h, c, canvas);
         }
     }
 
-    const int outer_w = 120;
-    const int outer_h = 120;
-    const int outer_x = (w - outer_w) / 2;
-    const int outer_y = h - outer_h - 8;
+    int outer_w = 120;
+    int outer_h = 120;
+    if (outer_w > w) outer_w = w - 8;
+    if (outer_h > h) outer_h = h - 8;
+    if (outer_w > outer_h) outer_w = outer_h; else outer_h = outer_w;
+    
+    int outer_x = (w - outer_w) / 2;
+    int outer_y = h - outer_h - 8;
+    if (outer_y < 0) outer_y = 0;
     const int nested_steps = 8;
-    const int inset_step = 6; // how much each nested rect is inset
+    const int inset_step = outer_w / (nested_steps * 2 + 2); // adapt inset_step
 
     for (int i = 0; i < nested_steps; ++i)
     {
@@ -266,23 +280,27 @@ int main()
         int nw = outer_w - i * 2 * inset_step;
         int nh = outer_h - i * 2 * inset_step;
         color_t nc = (i % 2 == 0) ? RED : BLACK;
-        draw_rect(&epd, nx, ny, (uint16_t)nw, (uint16_t)nh, nc, canvas);
+        draw_rect(epd, nx, ny, (uint16_t)nw, (uint16_t)nh, nc, canvas);
     }
-
+}
 #elif TEST_CASE == TEST_CASE_6_CIRCLE
-    const int cols = 5;
-    const int rows = 10;
+static void run_test_case_6_circle(epd_t *epd, uint8_t *canvas)
+{
+    const uint16_t w = canvas_width(epd);
+    const uint16_t h = canvas_height(epd);
     const int radius = 11;
     const int gap = 2;
     const int step_x = 2 * radius + gap;
     const int step_y = 2 * radius + gap;
-    const int start_x = radius;
-    const int start_y = radius;
+    const int cols = w / step_x;
+    const int rows = h / step_y;
+    const int start_x = (w - (cols * step_x - gap)) / 2 + radius;
+    const int start_y = (h - (rows * step_y - gap)) / 2 + radius;
 
     const color_t palette[] = {YELLOW, RED, BLACK};
     const int palette_len = sizeof(palette) / sizeof(palette[0]);
 
-    fill_background(&epd, WHITE, canvas);
+    fill_background(epd, WHITE, canvas);
 
     uint32_t rnd = (uint32_t)to_us_since_boot(get_absolute_time());
 
@@ -299,24 +317,28 @@ int main()
             int color = palette[rnd % palette_len];
             int x = start_x + cx * step_x;
             int y = start_y + ry * step_y;
-            draw_circle(&epd, x, y, radius, color, canvas);
+            draw_circle(epd, x, y, radius, color, canvas);
         }
     }
-
+}
 #elif TEST_CASE == TEST_CASE_7_CIRCLE_FILLED
-    const int cols = 5;
-    const int rows = 10;
+static void run_test_case_7_circle_filled(epd_t *epd, uint8_t *canvas)
+{
+    const uint16_t w = canvas_width(epd);
+    const uint16_t h = canvas_height(epd);
     const int radius = 11;
     const int gap = 2;
     const int step_x = 2 * radius + gap;
     const int step_y = 2 * radius + gap;
-    const int start_x = radius;
-    const int start_y = radius;
+    const int cols = w / step_x;
+    const int rows = h / step_y;
+    const int start_x = (w - (cols * step_x - gap)) / 2 + radius;
+    const int start_y = (h - (rows * step_y - gap)) / 2 + radius;
 
     const color_t palette[] = {YELLOW, RED, BLACK};
     const int palette_len = sizeof(palette) / sizeof(palette[0]);
 
-    fill_background(&epd, WHITE, canvas);
+    fill_background(epd, WHITE, canvas);
 
     uint32_t rnd = (uint32_t)to_us_since_boot(get_absolute_time());
 
@@ -334,12 +356,14 @@ int main()
             int x = start_x + cx * step_x;
             int y = start_y + ry * step_y;
 
-            fill_circle(&epd, x, y, radius, color, canvas);
+            fill_circle(epd, x, y, radius, color, canvas);
         }
     }
-
+}
 #elif TEST_CASE == TEST_CASE_8_IMAGE
-    const uint8_t bits_per_pixel = (uint8_t)epd.depth;
+static void run_test_case_8_image(epd_t *epd, uint8_t *canvas)
+{
+    const uint8_t bits_per_pixel = (uint8_t)epd->depth;
     if (is_supported_depth(bits_per_pixel))
     {
         enum
@@ -350,10 +374,10 @@ int main()
 
         static uint8_t image[IMG_W * IMG_H] = {0}; // allocate for worst case (8bpp)
         memset(image, 0, sizeof(image));
-        fill_background(&epd, WHITE, canvas);
+        fill_background(epd, WHITE, canvas);
 
-        const uint16_t w = canvas_width(&epd);
-        const uint16_t h = canvas_height(&epd);
+        const uint16_t w = canvas_width(epd);
+        const uint16_t h = canvas_height(epd);
         const uint16_t x0 = (w > IMG_W) ? (uint16_t)((w - IMG_W) / 2) : 0;
         const uint16_t y0 = (h > IMG_H) ? (uint16_t)((h - IMG_H) / 2) : 0;
 
@@ -381,10 +405,46 @@ int main()
             }
         }
 
-        draw_image(&epd, x0, y0, image, IMG_W, IMG_H, canvas);
-        draw_rect(&epd, x0, y0, IMG_W, IMG_H, BLACK, canvas);
-        draw_text(&epd, 4, 4, "draw_image()", FONT_TAHOMA_12, BLACK, 2, canvas);
+        draw_image(epd, x0, y0, image, IMG_W, IMG_H, canvas);
+        draw_rect(epd, x0, y0, IMG_W, IMG_H, BLACK, canvas);
+        draw_text(epd, 4, 4, "draw_image()", FONT_TAHOMA_12, BLACK, 2, canvas);
     }
+}
+#endif
+
+int main()
+{
+    static uint8_t canvas[EPD_2_13_WIDTH * EPD_2_13_HEIGHT / 4] = {0};
+    epd_t epd = epd_create(8);
+
+    epd_init(&epd);
+    stdio_init_all();
+    epd.rotation = EPD_ROT_180;
+
+    gpio_init(PICO_DEFAULT_LED_PIN);
+    gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
+
+    // code
+    blink(1000);
+
+#if TEST_CASE == 0
+    run_test_case_0_boxes(&epd, canvas);
+#elif TEST_CASE == 1
+    run_test_case_1_text(&epd, canvas);
+#elif TEST_CASE == 2
+    run_test_case_2_text_bg(&epd, canvas);
+#elif TEST_CASE == 3
+    run_test_case_3_rays(&epd, canvas);
+#elif TEST_CASE == TEST_CASE_4_BANDS
+    run_test_case_4_bands(&epd, canvas);
+#elif TEST_CASE == TEST_CASE_5_NESTED_RECTS
+    run_test_case_5_nested_rects(&epd, canvas);
+#elif TEST_CASE == TEST_CASE_6_CIRCLE
+    run_test_case_6_circle(&epd, canvas);
+#elif TEST_CASE == TEST_CASE_7_CIRCLE_FILLED
+    run_test_case_7_circle_filled(&epd, canvas);
+#elif TEST_CASE == TEST_CASE_8_IMAGE
+    run_test_case_8_image(&epd, canvas);
 #endif
 
     epd_display(&epd, canvas);
