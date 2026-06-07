@@ -116,7 +116,8 @@ void epd_set_pixel(epd_t *epd, uint16_t x, uint16_t y, uint8_t color, uint8_t *c
     }
 
     const uint8_t pixels_per_byte = 8 / bits_per_pixel;
-    uint32_t index = ((uint32_t)py * (uint32_t)epd->width + (uint32_t)px) / pixels_per_byte;
+    const uint32_t bytes_per_row = ((uint32_t)epd->width * bits_per_pixel + 7u) / 8u;
+    const uint32_t index = (uint32_t)py * bytes_per_row + (uint32_t)px / pixels_per_byte;
     uint8_t shift = (pixels_per_byte - 1 - (px % pixels_per_byte)) * bits_per_pixel;
 
     uint8_t mask = ((1 << bits_per_pixel) - 1) << shift;
@@ -136,9 +137,9 @@ void fill_background(epd_t *epd, color_t color, uint8_t *canvas)
         return;
     }
 
-    const uint32_t total_pixels = (uint32_t)epd->width * (uint32_t)epd->height;
     const uint8_t pixels_per_byte = (uint8_t)(CHAR_BIT / bits_per_pixel);
-    const uint32_t total_bytes = (total_pixels + pixels_per_byte - 1u) / pixels_per_byte;
+    const uint32_t bytes_per_row = ((uint32_t)epd->width * bits_per_pixel + 7u) / 8u;
+    const uint32_t total_bytes = bytes_per_row * epd->height;
 
     const uint8_t pixel_mask = (uint8_t)((1u << bits_per_pixel) - 1u);
     const uint8_t packed_color = (uint8_t)color & pixel_mask;
@@ -311,23 +312,130 @@ void fill_rect(epd_t *epd, uint16_t x, uint16_t y, uint16_t width, uint16_t heig
     const uint16_t logical_w = canvas_width(epd);
     const uint16_t logical_h = canvas_height(epd);
 
-    uint32_t x_end = (uint32_t)x + (uint32_t)width;
-    uint32_t y_end = (uint32_t)y + (uint32_t)height;
+    uint32_t x_end_coord = (uint32_t)x + (uint32_t)width;
+    uint32_t y_end_coord = (uint32_t)y + (uint32_t)height;
 
-    if (x_end > logical_w)
+    if (x_end_coord > logical_w)
     {
-        x_end = logical_w;
+        x_end_coord = logical_w;
     }
-    if (y_end > logical_h)
+    if (y_end_coord > logical_h)
     {
-        y_end = logical_h;
+        y_end_coord = logical_h;
     }
 
-    for (uint16_t i = y; i < (uint16_t)y_end; i++)
+    if (x >= x_end_coord || y >= y_end_coord)
     {
-        for (uint16_t j = x; j < (uint16_t)x_end; j++)
+        return;
+    }
+
+    const uint8_t bits_per_pixel = (uint8_t)epd->depth;
+    if (!is_supported_depth(bits_per_pixel))
+    {
+        return;
+    }
+
+    // Determine physical rectangle coordinates based on rotation
+    uint16_t px_start, px_end, py_start, py_end;
+    const uint16_t w = epd->width;
+    const uint16_t h = epd->height;
+
+    switch (epd->rotation)
+    {
+    case EPD_ROT_0:
+    default:
+        px_start = x;
+        px_end = (uint16_t)x_end_coord;
+        py_start = y;
+        py_end = (uint16_t)y_end_coord;
+        break;
+
+    case EPD_ROT_180:
+        px_start = w - (uint16_t)x_end_coord;
+        px_end = w - x;
+        py_start = h - (uint16_t)y_end_coord;
+        py_end = h - y;
+        break;
+
+    case EPD_ROT_90:
+        px_start = y;
+        px_end = (uint16_t)y_end_coord;
+        py_start = h - (uint16_t)x_end_coord;
+        py_end = h - x;
+        break;
+
+    case EPD_ROT_270:
+        px_start = w - (uint16_t)y_end_coord;
+        px_end = w - y;
+        py_start = x;
+        py_end = (uint16_t)x_end_coord;
+        break;
+    }
+
+    const uint8_t pixels_per_byte = 8 / bits_per_pixel;
+    const uint8_t pixel_mask = (1 << bits_per_pixel) - 1;
+    const uint32_t bytes_per_row = ((uint32_t)w * bits_per_pixel + 7u) / 8u;
+
+    uint8_t packed_color = 0;
+    for (uint8_t i = 0; i < pixels_per_byte; i++)
+    {
+        packed_color |= (uint8_t)((color & pixel_mask) << (i * bits_per_pixel));
+    }
+
+    const uint16_t byte_start = px_start / pixels_per_byte;
+    const uint16_t byte_end = px_end / pixels_per_byte;
+
+    for (uint16_t py = py_start; py < py_end; py++)
+    {
+        uint8_t *row_ptr = canvas + (uint32_t)py * bytes_per_row;
+
+        if (byte_start == byte_end)
         {
-            epd_set_pixel(epd, j, i, color, canvas);
+            uint8_t mask = 0;
+            uint8_t val = 0;
+            for (uint16_t px = px_start; px < px_end; px++)
+            {
+                uint8_t shift = (pixels_per_byte - 1 - (px % pixels_per_byte)) * bits_per_pixel;
+                mask |= (uint8_t)(pixel_mask << shift);
+                val |= (uint8_t)((color & pixel_mask) << shift);
+            }
+            row_ptr[byte_start] = (row_ptr[byte_start] & ~mask) | val;
+        }
+        else
+        {
+            // Unaligned start
+            {
+                uint8_t mask = 0;
+                uint8_t val = 0;
+                const uint16_t align_end = (byte_start + 1) * pixels_per_byte;
+                for (uint16_t px = px_start; px < align_end; px++)
+                {
+                    uint8_t shift = (pixels_per_byte - 1 - (px % pixels_per_byte)) * bits_per_pixel;
+                    mask |= (uint8_t)(pixel_mask << shift);
+                    val |= (uint8_t)((color & pixel_mask) << shift);
+                }
+                row_ptr[byte_start] = (row_ptr[byte_start] & ~mask) | val;
+            }
+
+            // Aligned middle
+            if (byte_start + 1 < byte_end)
+            {
+                memset(row_ptr + byte_start + 1, packed_color, byte_end - (byte_start + 1));
+            }
+
+            // Unaligned end
+            if (px_end > byte_end * pixels_per_byte)
+            {
+                uint8_t mask = 0;
+                uint8_t val = 0;
+                for (uint16_t px = byte_end * pixels_per_byte; px < px_end; px++)
+                {
+                    uint8_t shift = (pixels_per_byte - 1 - (px % pixels_per_byte)) * bits_per_pixel;
+                    mask |= (uint8_t)(pixel_mask << shift);
+                    val |= (uint8_t)((color & pixel_mask) << shift);
+                }
+                row_ptr[byte_end] = (row_ptr[byte_end] & ~mask) | val;
+            }
         }
     }
 }
@@ -408,7 +516,8 @@ void fill_circle(epd_t *epd, uint16_t x_center, uint16_t y_center, uint16_t radi
 static inline uint8_t get_packed_pixel(const uint8_t *buffer, uint16_t width, uint16_t x, uint16_t y, uint8_t bits_per_pixel)
 {
     const uint8_t pixels_per_byte = (uint8_t)(8u / bits_per_pixel);
-    const uint32_t index = ((uint32_t)y * (uint32_t)width + (uint32_t)x) / pixels_per_byte;
+    const uint32_t bytes_per_row = ((uint32_t)width * bits_per_pixel + 7u) / 8u;
+    const uint32_t index = (uint32_t)y * bytes_per_row + (uint32_t)x / pixels_per_byte;
     const uint8_t shift = (uint8_t)((pixels_per_byte - 1u - (x % pixels_per_byte)) * bits_per_pixel);
     const uint8_t mask = (uint8_t)((1u << bits_per_pixel) - 1u);
     return (uint8_t)((buffer[index] >> shift) & mask);

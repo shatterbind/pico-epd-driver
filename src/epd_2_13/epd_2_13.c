@@ -97,18 +97,25 @@ void epd_send_data(epd_t *epd, const uint8_t *data, uint32_t length)
 
 void epd_fill(epd_t *epd, uint8_t color)
 {
-
-    uint16_t width = epd->width / 4;
+    const uint8_t bits_per_pixel = (uint8_t)epd->depth;
+    uint16_t row_bytes = (epd->width * bits_per_pixel + 7) / 8;
     uint16_t height = epd->height;
 
     uint8_t cmd = 0x10;
     epd_send_command(epd, cmd);
 
+    uint8_t data = 0;
+    const uint8_t pixels_per_byte = 8 / bits_per_pixel;
+    const uint8_t pixel_mask = (1 << bits_per_pixel) - 1;
+    for (uint8_t i = 0; i < pixels_per_byte; i++)
+    {
+        data |= (color & pixel_mask) << (i * bits_per_pixel);
+    }
+
     for (uint16_t j = 0; j < height; j++)
     {
-        for (uint16_t i = 0; i < width; i++)
+        for (uint16_t i = 0; i < row_bytes; i++)
         {
-            uint8_t data = (color << 6) | (color << 4) | (color << 2) | color;
             epd_send_data(epd, &data, 1);
         }
     }
@@ -118,11 +125,12 @@ void epd_fill(epd_t *epd, uint8_t color)
 
 void epd_display(epd_t *epd, uint8_t *data)
 {
-    uint16_t width = epd->width / 4;
+    const uint8_t bits_per_pixel = (uint8_t)epd->depth;
+    uint16_t row_bytes = (epd->width * bits_per_pixel + 7) / 8;
     uint16_t height = epd->height;
 
     epd_send_command(epd, 0x10);
-    epd_send_data(epd, data, width * height);
+    epd_send_data(epd, data, (uint32_t)row_bytes * height);
 
     epd_turn_on(epd);
 }
