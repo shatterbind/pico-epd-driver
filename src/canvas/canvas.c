@@ -2,6 +2,35 @@
 #include <stdbool.h>
 #include <string.h>
 
+#ifdef USE_NOTO_KUFI_ARABIC_8
+#include "fonts/noto_kufi_arabic_8_font.h"
+#endif
+
+#ifdef USE_NOTO_KUFI_ARABIC_12
+#include "fonts/noto_kufi_arabic_12_font.h"
+#endif
+
+#ifdef USE_FONT_CAMBRIA_16
+#include "fonts/font_cambria_16.h"
+#endif
+
+#ifdef USE_FONT_TAHOMA_8
+#include "fonts/tahoma_8_font.h"
+#endif
+
+#ifdef USE_FONT_TAHOMA_12
+#include "fonts/tahoma_12_font.h"
+#endif
+
+#ifdef USE_FONT_TAHOMA_16
+#include "fonts/tahoma_16_font.h"
+#endif
+
+#ifdef USE_FONT_TAHOMA_24
+#include "fonts/tahoma_24_font.h"
+#endif
+
+
 static inline bool is_supported_depth(uint8_t bits_per_pixel)
 {
     return bits_per_pixel != 0 && (8 % bits_per_pixel) == 0;
@@ -241,6 +270,54 @@ void draw_text(epd_t *epd, uint16_t x, uint16_t y, const char *text, text_type_t
 void draw_text_with_bg(epd_t *epd, uint16_t x, uint16_t y, const char *text, text_type_t type, color_t color, uint8_t gap, color_t background, uint8_t *canvas)
 {
     draw_text_impl(epd, x, y, text, type, color, gap, true, background, canvas);
+}
+
+uint16_t canvas_get_text_width(const char *text, text_type_t type, uint8_t gap)
+{
+    if (!text || *text == '\0')
+    {
+        return 0;
+    }
+
+    const font_property_t font = font_properties(type);
+    if (!font.pointer || font.width == 0 || font.height == 0 || font.length == 0)
+    {
+        return 0;
+    }
+
+    uint16_t total_width = 0;
+    bool first_char = true;
+
+    for (const char *p = text; *p != '\0'; ++p)
+    {
+        const uint8_t c = (uint8_t)*p;
+        if (is_not_printable(c, font))
+        {
+            continue;
+        }
+
+        uint16_t char_w = font.width;
+        if (font.type == proportional)
+        {
+            uint32_t offset = (uint32_t)(c - font.start) * (uint32_t)font.length;
+            char_w = font.pointer[offset];
+        }
+
+        if (!first_char)
+        {
+            total_width += gap;
+        }
+        total_width += char_w;
+        first_char = false;
+    }
+
+    return total_width;
+}
+
+uint16_t canvas_get_text_height(text_type_t type)
+{
+    const font_property_t font = font_properties(type);
+    return font.height;
 }
 
 void draw_line(epd_t *epd, uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, color_t color, uint8_t *canvas)
@@ -512,6 +589,229 @@ void fill_circle(epd_t *epd, uint16_t x_center, uint16_t y_center, uint16_t radi
         }
     }
 }
+
+static void draw_circle_helper(epd_t *epd, int16_t x0, int16_t y0, int16_t r, uint8_t cornername, color_t color, uint8_t *canvas)
+{
+    int16_t f = 1 - r;
+    int16_t ddF_x = 1;
+    int16_t ddF_y = -2 * r;
+    int16_t x = 0;
+    int16_t y = r;
+
+    while (x < y)
+    {
+        if (f >= 0)
+        {
+            y--;
+            ddF_y += 2;
+            f += ddF_y;
+        }
+        x++;
+        ddF_x += 2;
+        f += ddF_x;
+
+        if (cornername & 0x4)
+        {
+            epd_set_pixel(epd, x0 + x, y0 + y, color, canvas);
+            epd_set_pixel(epd, x0 + y, y0 + x, color, canvas);
+        }
+        if (cornername & 0x2)
+        {
+            epd_set_pixel(epd, x0 + x, y0 - y, color, canvas);
+            epd_set_pixel(epd, x0 + y, y0 - x, color, canvas);
+        }
+        if (cornername & 0x8)
+        {
+            epd_set_pixel(epd, x0 - y, y0 + x, color, canvas);
+            epd_set_pixel(epd, x0 - x, y0 + y, color, canvas);
+        }
+        if (cornername & 0x1)
+        {
+            epd_set_pixel(epd, x0 - y, y0 - x, color, canvas);
+            epd_set_pixel(epd, x0 - x, y0 - y, color, canvas);
+        }
+    }
+}
+
+static void fill_circle_helper(epd_t *epd, int16_t x0, int16_t y0, int16_t r, uint8_t corners, int16_t delta, color_t color, uint8_t *canvas)
+{
+    int16_t f = 1 - r;
+    int16_t ddF_x = 1;
+    int16_t ddF_y = -2 * r;
+    int16_t x = 0;
+    int16_t y = r;
+    int16_t px = x;
+    int16_t py = y;
+
+    delta++;
+
+    while (x < y)
+    {
+        if (f >= 0)
+        {
+            y--;
+            ddF_y += 2;
+            f += ddF_y;
+        }
+        x++;
+        ddF_x += 2;
+        f += ddF_x;
+
+        if (x < (y + 1))
+        {
+            if (corners & 1)
+            {
+                draw_line(epd, x0 - y, y0 - x, x0 - y, y0 - x + 2 * x + delta - 1, color, canvas);
+            }
+            if (corners & 2)
+            {
+                draw_line(epd, x0 + y, y0 - x, x0 + y, y0 - x + 2 * x + delta - 1, color, canvas);
+            }
+        }
+        if (y != py)
+        {
+            if (corners & 1)
+            {
+                draw_line(epd, x0 - px, y0 - py, x0 - px, y0 - py + 2 * py + delta - 1, color, canvas);
+            }
+            if (corners & 2)
+            {
+                draw_line(epd, x0 + px, y0 - py, x0 + px, y0 - py + 2 * py + delta - 1, color, canvas);
+            }
+            py = y;
+        }
+        px = x;
+    }
+}
+
+void draw_round_rect(epd_t *epd, uint16_t x, uint16_t y, uint16_t width, uint16_t height, uint16_t radius, color_t color, uint8_t *canvas)
+{
+    if (!epd || !canvas || width == 0 || height == 0)
+    {
+        return;
+    }
+
+    uint16_t max_r = ((width < height) ? width : height) / 2;
+    if (radius > max_r)
+    {
+        radius = max_r;
+    }
+
+    if (radius == 0)
+    {
+        draw_rect(epd, x, y, width, height, color, canvas);
+        return;
+    }
+
+    draw_line(epd, x + radius, y, x + width - radius - 1, y, color, canvas);
+    draw_line(epd, x + radius, y + height - 1, x + width - radius - 1, y + height - 1, color, canvas);
+    draw_line(epd, x, y + radius, x, y + height - radius - 1, color, canvas);
+    draw_line(epd, x + width - 1, y + radius, x + width - 1, y + height - radius - 1, color, canvas);
+
+    draw_circle_helper(epd, x + radius, y + radius, radius, 1, color, canvas);
+    draw_circle_helper(epd, x + width - radius - 1, y + radius, radius, 2, color, canvas);
+    draw_circle_helper(epd, x + width - radius - 1, y + height - radius - 1, radius, 4, color, canvas);
+    draw_circle_helper(epd, x + radius, y + height - radius - 1, radius, 8, color, canvas);
+}
+
+void fill_round_rect(epd_t *epd, uint16_t x, uint16_t y, uint16_t width, uint16_t height, uint16_t radius, color_t color, uint8_t *canvas)
+{
+    if (!epd || !canvas || width == 0 || height == 0)
+    {
+        return;
+    }
+
+    uint16_t max_r = ((width < height) ? width : height) / 2;
+    if (radius > max_r)
+    {
+        radius = max_r;
+    }
+
+    if (radius == 0)
+    {
+        fill_rect(epd, x, y, width, height, color, canvas);
+        return;
+    }
+
+    fill_rect(epd, x + radius, y, width - 2 * radius, height, color, canvas);
+    fill_circle_helper(epd, x + width - radius - 1, y + radius, radius, 1, height - 2 * radius - 1, color, canvas);
+    fill_circle_helper(epd, x + radius, y + radius, radius, 2, height - 2 * radius - 1, color, canvas);
+}
+
+void draw_triangle(epd_t *epd, uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, color_t color, uint8_t *canvas)
+{
+    draw_line(epd, x0, y0, x1, y1, color, canvas);
+    draw_line(epd, x1, y1, x2, y2, color, canvas);
+    draw_line(epd, x2, y2, x0, y0, color, canvas);
+}
+
+void fill_triangle(epd_t *epd, uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, color_t color, uint8_t *canvas)
+{
+    if (!epd || !canvas)
+    {
+        return;
+    }
+
+    int16_t a, b, y, last;
+
+    if (y0 > y1) {
+        int16_t t;
+        t = y0; y0 = y1; y1 = t;
+        t = x0; x0 = x1; x1 = t;
+    }
+    if (y1 > y2) {
+        int16_t t;
+        t = y2; y2 = y1; y1 = t;
+        t = x2; x2 = x1; x1 = t;
+    }
+    if (y0 > y1) {
+        int16_t t;
+        t = y0; y0 = y1; y1 = t;
+        t = x0; x0 = x1; x1 = t;
+    }
+
+    if (y0 == y2)
+    {
+        a = b = x0;
+        if (x1 < a) a = x1;
+        else if (x1 > b) b = x1;
+        if (x2 < a) a = x2;
+        else if (x2 > b) b = x2;
+        draw_line(epd, a, y0, b, y0, color, canvas);
+        return;
+    }
+
+    int16_t dx01 = x1 - x0, dy01 = y1 - y0;
+    int16_t dx02 = x2 - x0, dy02 = y2 - y0;
+    int16_t dx12 = x2 - x1, dy12 = y2 - y1;
+    int32_t sa = 0, sb = 0;
+
+    if (y1 == y2) last = y1;
+    else last = y1 - 1;
+
+    for (y = y0; y <= last; y++)
+    {
+        a = x0 + sa / dy01;
+        b = x0 + sb / dy02;
+        sa += dx01;
+        sb += dx02;
+        if (a > b) { int16_t t = a; a = b; b = t; }
+        draw_line(epd, a, y, b, y, color, canvas);
+    }
+
+    sa = (int32_t)dx12 * (y - y1);
+    sb = (int32_t)dx02 * (y - y0);
+    for (; y <= y2; y++)
+    {
+        a = x1 + sa / dy12;
+        b = x0 + sb / dy02;
+        sa += dx12;
+        sb += dx02;
+        if (a > b) { int16_t t = a; a = b; b = t; }
+        draw_line(epd, a, y, b, y, color, canvas);
+    }
+}
+
 
 static inline uint8_t get_packed_pixel(const uint8_t *buffer, uint16_t width, uint16_t x, uint16_t y, uint8_t bits_per_pixel)
 {
