@@ -18,6 +18,11 @@
 
 #define DEMO_DELAY_MS 5000
 
+// Set to 1 to run ONLY the watering preview test, or 0 for normal test selection
+#ifndef RUN_WATERING_PREVIEW_ONLY
+#define RUN_WATERING_PREVIEW_ONLY 1
+#endif
+
 // Set to 1 to test uploading only the image assets one by one, or 0 to run all demo test cases
 #ifndef RUN_IMAGE_TESTS_ONLY
 #define RUN_IMAGE_TESTS_ONLY 0
@@ -64,6 +69,9 @@ static inline void image_set_pixel(uint8_t *image, uint16_t width, uint16_t x, u
     image[index] = (uint8_t)((image[index] & ~mask) | ((color & ((1u << bits_per_pixel) - 1u)) << shift));
 }
 
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
 
 static void run_test_case_0_boxes(epd_t *epd, uint8_t *canvas)
 {
@@ -452,6 +460,11 @@ static void run_test_case_image_dithered(epd_t *epd, uint8_t *canvas)
     draw_fullscreen_image(epd, fullscreen_dithered_122x250, FULLSCREEN_DITHERED_WIDTH, FULLSCREEN_DITHERED_HEIGHT, canvas);
 }
 
+static void run_test_case_watering_preview(epd_t *epd, uint8_t *canvas)
+{
+    draw_fullscreen_image(epd, watering_preview_122x250, WATERING_PREVIEW_WIDTH, WATERING_PREVIEW_HEIGHT, canvas);
+}
+
 static void run_test_case_watering_dashboard(epd_t *epd, uint8_t *canvas)
 {
     // Draw the static template image as background
@@ -518,6 +531,8 @@ static void run_test_case_9_shapes(epd_t *epd, uint8_t *canvas)
     fill_triangle(epd, mid_x - 15, y_base - 5, mid_x, y_top + 10, mid_x + 15, y_base - 5, RED, canvas);
 }
 
+#pragma GCC diagnostic pop
+
 typedef void (*test_func_t)(epd_t *, uint8_t *);
 
 int main()
@@ -536,11 +551,15 @@ int main()
 
     blink(1000);
 
-    const epd_rotation_t rotations[] = {EPD_ROT_0, EPD_ROT_90, EPD_ROT_180, EPD_ROT_270};
-    const int num_rotations = sizeof(rotations) / sizeof(rotations[0]);
-
-#if RUN_IMAGE_TESTS_ONLY
+#if RUN_WATERING_PREVIEW_ONLY
+    const epd_rotation_t rotations[] = {EPD_ROT_0};
     const test_func_t tests[] = {
+        run_test_case_watering_preview,
+    };
+#elif RUN_IMAGE_TESTS_ONLY
+    const epd_rotation_t rotations[] = {EPD_ROT_0, EPD_ROT_90, EPD_ROT_180, EPD_ROT_270};
+    const test_func_t tests[] = {
+        run_test_case_watering_preview,
         run_test_case_watering_dashboard,
         run_test_case_8_image,
         run_test_case_image_clean,
@@ -548,7 +567,9 @@ int main()
         run_test_case_image_dithered,
     };
 #else
+    const epd_rotation_t rotations[] = {EPD_ROT_0, EPD_ROT_90, EPD_ROT_180, EPD_ROT_270};
     const test_func_t tests[] = {
+        run_test_case_watering_preview,
         run_test_case_watering_dashboard,
         run_test_case_0_boxes,
         run_test_case_1_text,
@@ -566,6 +587,7 @@ int main()
     };
 #endif
 
+    const int num_rotations = sizeof(rotations) / sizeof(rotations[0]);
     const int num_tests = sizeof(tests) / sizeof(tests[0]);
 
     for (int rot = 0; rot < num_rotations; rot++)

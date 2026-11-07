@@ -91,9 +91,9 @@ The display canvas has a logical resolution of **122 × 250 pixels** (`EPD_ROT_0
 | Section | Coordinates `(X0, Y0) – (X1, Y1)` | Dimensions `(W × H)` | Corner Radius | Elements / Badges |
 | :--- | :---: | :---: | :---: | :--- |
 | **Header Status Bar** | `(4, 2) – (117, 20)` | 114 × 19 px | — | "IRRIGO" branding, status LED dot, battery outline `(66, 6) [17×9 px]`, divider line at `Y=20` |
-| **Plant Hero Card** | `(4, 24) – (117, 76)` | 114 × 53 px | 4 px | "PLANT" header tab `(10, 24) [39×8 px]`, Sprout icon centered at `(96, 44)` |
-| **Moisture / Humidity Card** | `(4, 81) – (117, 143)` | 114 × 63 px | 4 px | "SOIL MOISTURE" tab `(10, 81) [59×8 px]`, Droplet icon at `(22, 106)`, Gauge bar outline at `Y=126` |
-| **Temperature Card** | `(4, 149) – (117, 201)` | 114 × 53 px | 4 px | "TEMPERATURE" tab `(10, 149) [65×8 px]`, Thermometer icon at `(22, 175)` |
+| **Plant Hero Card** | `(4, 24) – (117, 76)` | 114 × 53 px | 4 px | "PLANT" label at `(10, 27)`, Sprout icon centered at `(96, 44)` |
+| **Moisture / Humidity Card** | `(4, 81) – (117, 143)` | 114 × 63 px | 4 px | "SOIL MOISTURE" label at `(10, 84)`, Droplet icon at `(22, 106)`, Gauge bar outline at `Y=126` |
+| **Temperature Card** | `(4, 149) – (117, 201)` | 114 × 53 px | 4 px | "TEMPERATURE" label at `(10, 152)`, Thermometer icon at `(22, 175)` |
 | **Refresh / Footer Card** | `(4, 207) – (117, 246)` | 114 × 40 px | 4 px | "LAST REFRESH" label at `(30, 212)`, Clock icon centered at `(18, 226, R=6)` |
 
 ---
@@ -125,7 +125,7 @@ The soil moisture card includes an outline gauge with ticks for **DRY**, **OK**,
   fill_rect(&epd, 13, 127, fill_w, 6, YELLOW, canvas);
   ```
 - **Tick Marks**: `X = 44` (33% threshold), `X = 76` (66% threshold)
-- **Labels (Tahoma 8)**: `"DRY"` at `(12, 135)`, `"OK"` at `(54, 135)`, `"WET"` at `(93, 135)`
+- **Labels (Tahoma 8)**: `"DRY"` at `(12, 133)`, `"OK"` at `(54, 133)`, `"WET"` at `(93, 133)` (leaving 1px padding above and below)
 
 ---
 

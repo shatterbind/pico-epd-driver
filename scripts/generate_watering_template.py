@@ -186,9 +186,9 @@ def create_watering_image(preview=False):
         # Fill up to 68% (approx x=78)
         draw.rectangle([bar_x0 + 1, bar_y0 + 1, 78, bar_y1 - 1], fill=YELLOW)
     
-    draw.text((12, 135), "DRY", fill=BLACK, font=font_tahoma_8)
-    draw.text((54, 135), "OK", fill=BLACK, font=font_tahoma_8)
-    draw.text((93, 135), "WET", fill=BLACK, font=font_tahoma_8)
+    draw.text((12, 133), "DRY", fill=BLACK, font=font_tahoma_8)
+    draw.text((54, 133), "OK", fill=BLACK, font=font_tahoma_8)
+    draw.text((93, 133), "WET", fill=BLACK, font=font_tahoma_8)
 
     # -------------------------------------------------------------
     # 4. METRIC CARD 2: TEMPERATURE (y: 149 to 201)
