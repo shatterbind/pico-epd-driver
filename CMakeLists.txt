@@ -57,4 +57,7 @@ pico_set_program_version(${CMAKE_PROJECT_NAME} "0.1")
 # pull in common dependencies
 target_link_libraries(${CMAKE_PROJECT_NAME} epd_2_13 canvas pico_stdlib hardware_adc)
 
+target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE -Wall -Wextra)
+
 pico_add_extra_outputs(${CMAKE_PROJECT_NAME})
+

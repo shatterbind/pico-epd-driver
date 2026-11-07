@@ -9,46 +9,37 @@
 #define CHAR_BIT 8
 #endif
 
+#ifndef USE_FONT_CAMBRIA_16
 #define USE_FONT_CAMBRIA_16
+#endif
 
+#ifndef USE_FONT_TAHOMA_8
 #define USE_FONT_TAHOMA_8
+#endif
+
+#ifndef USE_FONT_TAHOMA_12
 #define USE_FONT_TAHOMA_12
+#endif
+
+#ifndef USE_FONT_TAHOMA_16
 #define USE_FONT_TAHOMA_16
+#endif
+
+#ifndef USE_FONT_TAHOMA_24
 #define USE_FONT_TAHOMA_24
+#endif
 
+#ifndef USE_NOTO_KUFI_ARABIC_8
 #define USE_NOTO_KUFI_ARABIC_8
+#endif
+
+#ifndef USE_NOTO_KUFI_ARABIC_12
 #define USE_NOTO_KUFI_ARABIC_12
-
-#ifdef USE_NOTO_KUFI_ARABIC_8
-#include "fonts/noto_kufi_arabic_8_font.h"
 #endif
 
-#ifdef USE_NOTO_KUFI_ARABIC_12
-#include "fonts/noto_kufi_arabic_12_font.h"
-#endif
-
-#ifdef USE_FONT_CAMBRIA_16
-#include "fonts/font_cambria_16.h"
-#endif
-
-#ifdef USE_FONT_TAHOMA_8
-#include "fonts/tahoma_8_font.h"
-#endif
-
-#ifdef USE_FONT_TAHOMA_12
-#include "fonts/tahoma_12_font.h"
-#endif
-
-#ifdef USE_FONT_TAHOMA_16
-#include "fonts/tahoma_16_font.h"
-#endif
-
-#ifdef USE_FONT_TAHOMA_24
-#include "fonts/tahoma_24_font.h"
-#endif
 
 /*************************************/
-/*         TYPE DEFENITION           */
+/*          TYPE DEFINITION          */
 /*************************************/
 typedef enum
 {
@@ -59,7 +50,7 @@ typedef enum
 } color_t;
 
 /*************************************/
-/*           ENUMERATION             */
+/*            ENUMERATION            */
 /*************************************/
 typedef enum
 {
@@ -79,7 +70,7 @@ typedef enum
 } font_type_t;
 
 /*************************************/
-/*      FUNCION DECLARATION          */
+/*        STRUCT DEFINITION          */
 /*************************************/
 typedef struct
 {
@@ -93,7 +84,7 @@ typedef struct
 } font_property_t;
 
 /*************************************/
-/*      FUNCION DECLARATION          */
+/*       FUNCTION DECLARATION        */
 /*************************************/
 uint16_t canvas_width(const epd_t *epd);
 uint16_t canvas_height(const epd_t *epd);
@@ -101,6 +92,9 @@ uint16_t canvas_height(const epd_t *epd);
 void fill_background(epd_t *epd, color_t color, uint8_t *canvas);
 
 void epd_set_pixel(epd_t *epd, uint16_t x, uint16_t y, uint8_t color, uint8_t *canvas);
+
+uint16_t canvas_get_text_width(const char *text, text_type_t type, uint8_t gap);
+uint16_t canvas_get_text_height(text_type_t type);
 
 void draw_text(epd_t *epd, uint16_t x, uint16_t y, const char *text, text_type_t type, color_t color, uint8_t gap, uint8_t *canvas);
 void draw_text_with_bg(epd_t *epd, uint16_t x, uint16_t y, const char *text, text_type_t type, color_t color, uint8_t gap, color_t background, uint8_t *canvas);
@@ -110,9 +104,16 @@ void draw_line(epd_t *epd, uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, c
 void draw_rect(epd_t *epd, uint16_t x, uint16_t y, uint16_t width, uint16_t height, color_t color, uint8_t *canvas);
 void fill_rect(epd_t *epd, uint16_t x, uint16_t y, uint16_t width, uint16_t height, color_t color, uint8_t *canvas);
 
+void draw_round_rect(epd_t *epd, uint16_t x, uint16_t y, uint16_t width, uint16_t height, uint16_t radius, color_t color, uint8_t *canvas);
+void fill_round_rect(epd_t *epd, uint16_t x, uint16_t y, uint16_t width, uint16_t height, uint16_t radius, color_t color, uint8_t *canvas);
+
 void draw_circle(epd_t *epd, uint16_t x_center, uint16_t y_center, uint16_t radius, color_t color, uint8_t *canvas);
 void fill_circle(epd_t *epd, uint16_t x_center, uint16_t y_center, uint16_t radius, color_t color, uint8_t *canvas);
+
+void draw_triangle(epd_t *epd, uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, color_t color, uint8_t *canvas);
+void fill_triangle(epd_t *epd, uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, color_t color, uint8_t *canvas);
 
 void draw_image(epd_t *epd, uint16_t x_start, uint16_t y_start, const uint8_t *image_data, uint16_t width, uint16_t height, uint8_t *canvas);
 
 font_property_t font_properties(text_type_t type);
+

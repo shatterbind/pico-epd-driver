@@ -1,4 +1,6 @@
 #pragma once
+#include <stdbool.h>
+#include <stdint.h>
 #include "hardware/pwm.h"
 #include "hardware/spi.h"
 
@@ -8,7 +10,7 @@
 #define OFFSET_CMD (uint16_t)1
 #define OFFSET_DATA (uint16_t)2
 
-#define BAUD_RATE 1000000
+#define BAUD_RATE 4000000
 
 /*************************************/
 /*              ENUMS                */
@@ -56,9 +58,10 @@ typedef struct epd_t
 } epd_t;
 
 /*************************************/
-/*      FUNCION DECLARATION          */
+/*       FUNCTION DECLARATION        */
 /*************************************/
 epd_t epd_create(uint8_t dc);
+epd_t epd_create_custom(spi_inst_t *spi, pin_cfg_t pin_cfg, uint16_t width, uint16_t height, depth_t depth, uint32_t baud_rate);
 void epd_init(epd_t *epd);
 void epd_turn_on(epd_t *epd);
 void epd_fill(epd_t *epd, uint8_t color);
@@ -67,5 +70,7 @@ void epd_send_command(epd_t *epd, uint8_t command);
 void epd_send_data(epd_t *epd, const uint8_t *data, uint32_t length);
 void epd_set_dc_cs(epd_t *epd, uint8_t dc, uint8_t cs);
 void epd_read_busy(epd_t *epd);
+bool epd_read_busy_timeout(epd_t *epd, uint32_t timeout_ms);
 void epd_reset(epd_t *epd);
 void epd_sleep(epd_t *epd);
+

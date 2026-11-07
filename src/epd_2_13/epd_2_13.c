@@ -1,10 +1,41 @@
 #include "epd_2_13.h"
 #include "epd.h"
+#include <string.h>
+
+static const uint8_t epd_2_13_init_cmds[] = {
+    2, 0x00, 0x0f, 0x29,
+    2, 0x01, 0x07, 0x00,
+    3, 0x03, 0x10, 0x54, 0x44,
+    7, 0x06, 0x05, 0x00, 0x3f, 0x0a, 0x25, 0x12, 0x1a,
+    1, 0x50, 0x37,
+    2, 0x60, 0x02, 0x02,
+    4, 0x61, 0x00, 0x7C, 0x00, 0xfa,
+    1, 0xe3, 0xFF,
+    1, 0xe7, 0x1c,
+    1, 0xe9, 0x01,
+    3, 0xb4, 0xd0, 0xb5, 0x03,
+    1, 0x30, 0x08,
+    0, 0x04};
+
+epd_t epd_create_custom(spi_inst_t *spi, pin_cfg_t pin_cfg, uint16_t width, uint16_t height, depth_t depth, uint32_t baud_rate)
+{
+    epd_t epd;
+
+    epd.width = width;
+    epd.height = height;
+    epd.baud_rate = baud_rate;
+    epd.depth = depth;
+    epd.rotation = EPD_ROT_0;
+    epd.spi_port = (spi != NULL) ? spi : spi1;
+    epd.pin_cfg = pin_cfg;
+    epd.gpio_mask = (1u << pin_cfg.dc) | (1u << pin_cfg.cs);
+
+    return epd;
+}
 
 epd_t epd_create(uint8_t dc)
 {
     pin_cfg_t pin_cfg;
-    epd_t epd;
 
     pin_cfg.cs = EPD_2_13_PIN_CS;
     pin_cfg.dc = dc;
@@ -13,16 +44,7 @@ epd_t epd_create(uint8_t dc)
     pin_cfg.sck = EPD_2_13_PIN_CLK;
     pin_cfg.busy = EPD_2_13_PIN_BUSY;
 
-    epd.width = EPD_2_13_WIDTH;
-    epd.height = EPD_2_13_HEIGHT;
-    epd.baud_rate = BAUD_RATE;
-    epd.depth = DEPTH_2BIT;
-    epd.rotation = EPD_ROT_0;
-    epd.spi_port = spi1;
-    epd.pin_cfg = pin_cfg;
-    epd.gpio_mask = (1u << epd.pin_cfg.dc) | (1u << epd.pin_cfg.cs);
-
-    return epd;
+    return epd_create_custom(spi1, pin_cfg, EPD_2_13_WIDTH, EPD_2_13_HEIGHT, DEPTH_2BIT, BAUD_RATE);
 }
 
 void epd_init(epd_t *epd)
@@ -52,17 +74,16 @@ void epd_init(epd_t *epd)
 
     epd_read_busy(epd);
 
-    while (offset_ptr != sizeof(epd_2_13))
+    while (offset_ptr < sizeof(epd_2_13_init_cmds))
     {
-        uint8_t a = *(epd_2_13 + offset_ptr);
-        command = *(epd_2_13 + offset_ptr + OFFSET_CMD);
-        length_data = *(epd_2_13 + offset_ptr);
+        command = *(epd_2_13_init_cmds + offset_ptr + OFFSET_CMD);
+        length_data = *(epd_2_13_init_cmds + offset_ptr);
 
         epd_send_command(epd, command);
 
         if (0 != length_data)
         {
-            epd_send_data(epd, epd_2_13 + offset_ptr + OFFSET_DATA, length_data);
+            epd_send_data(epd, epd_2_13_init_cmds + offset_ptr + OFFSET_DATA, length_data);
         }
 
         offset_ptr += 2 + length_data;
@@ -77,7 +98,7 @@ void epd_turn_on(epd_t *epd)
     const uint8_t data = 0x00;
 
     epd_send_command(epd, cmd);
-    epd_send_data(epd, &cmd, sizeof(uint8_t));
+    epd_send_data(epd, &data, sizeof(uint8_t));
     epd_read_busy(epd);
 }
 
@@ -97,43 +118,64 @@ void epd_send_data(epd_t *epd, const uint8_t *data, uint32_t length)
 
 void epd_fill(epd_t *epd, uint8_t color)
 {
-
-    uint16_t width = epd->width / 4;
+    const uint8_t bits_per_pixel = (uint8_t)epd->depth;
+    uint16_t row_bytes = (epd->width * bits_per_pixel + 7) / 8;
     uint16_t height = epd->height;
 
     uint8_t cmd = 0x10;
     epd_send_command(epd, cmd);
 
+    uint8_t data = 0;
+    const uint8_t pixels_per_byte = 8 / bits_per_pixel;
+    const uint8_t pixel_mask = (1 << bits_per_pixel) - 1;
+    for (uint8_t i = 0; i < pixels_per_byte; i++)
+    {
+        data |= (color & pixel_mask) << (i * bits_per_pixel);
+    }
+
+    uint8_t row_buffer[row_bytes];
+    memset(row_buffer, data, row_bytes);
+
+    epd_set_dc_cs(epd, 1, 0);
     for (uint16_t j = 0; j < height; j++)
     {
-        for (uint16_t i = 0; i < width; i++)
-        {
-            uint8_t data = (color << 6) | (color << 4) | (color << 2) | color;
-            epd_send_data(epd, &data, 1);
-        }
+        spi_write_blocking(epd->spi_port, row_buffer, row_bytes);
     }
+    epd_set_dc_cs(epd, 1, 1);
 
     epd_turn_on(epd);
 }
 
 void epd_display(epd_t *epd, uint8_t *data)
 {
-    uint16_t width = epd->width / 4;
+    const uint8_t bits_per_pixel = (uint8_t)epd->depth;
+    uint16_t row_bytes = (epd->width * bits_per_pixel + 7) / 8;
     uint16_t height = epd->height;
 
     epd_send_command(epd, 0x10);
-    epd_send_data(epd, data, width * height);
+    epd_send_data(epd, data, (uint32_t)row_bytes * height);
 
     epd_turn_on(epd);
 }
 
-void epd_read_busy(epd_t *epd)
+bool epd_read_busy_timeout(epd_t *epd, uint32_t timeout_ms)
 {
-    sleep_ms(100);
+    sleep_ms(10);
+    absolute_time_t deadline = make_timeout_time_ms(timeout_ms);
     while (gpio_get(epd->pin_cfg.busy) == 0)
     {
-        sleep_ms(100);
+        if (time_reached(deadline))
+        {
+            return false;
+        }
+        sleep_ms(10);
     }
+    return true;
+}
+
+void epd_read_busy(epd_t *epd)
+{
+    epd_read_busy_timeout(epd, EPD_BUSY_DEFAULT_TIMEOUT_MS);
 }
 
 void epd_reset(epd_t *epd)
@@ -163,3 +205,4 @@ void epd_sleep(epd_t *epd)
     epd_send_command(epd, 0x07);
     epd_send_data(epd, &data, sizeof(uint8_t));
 }
+
