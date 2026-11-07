@@ -61,7 +61,7 @@ int main() {
     epd.rotation = EPD_ROT_270; // Set rotation
 
     // 2. Prepare Canvas
-    uint8_t canvas[EPD_2_13_WIDTH * EPD_2_13_HEIGHT / 4] = {0};
+    static uint8_t canvas[EPD_2_13_CANVAS_SIZE] = {0}; // rows are byte-padded: not WIDTH*HEIGHT/4
     fill_background(&epd, WHITE, canvas);
 
     // 3. Draw Graphics
