@@ -130,8 +130,7 @@ def create_watering_image(preview=False):
     # -------------------------------------------------------------
     # 1. TOP HEADER / STATUS BAR (y: 2 to 20)
     # -------------------------------------------------------------
-    # Plant watering badge icon & text
-    draw.text((6, 5), "IRRIGO", fill=BLACK, font=font_tahoma_bold_8)
+    # Status dot
     draw.rectangle([46, 7, 50, 11], fill=RED) # status dot
     
     # Battery Symbol (x=66, y=6)
