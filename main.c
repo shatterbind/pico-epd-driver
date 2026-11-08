@@ -537,7 +537,7 @@ typedef void (*test_func_t)(epd_t *, uint8_t *);
 
 int main()
 {
-    static uint8_t canvas[((EPD_2_13_WIDTH * 2 + 7) / 8) * EPD_2_13_HEIGHT] = {0};
+    static uint8_t canvas[EPD_2_13_CANVAS_SIZE] = {0};
     epd_t epd = epd_create(8);
 
     epd_init(&epd);

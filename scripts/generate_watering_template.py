@@ -130,8 +130,7 @@ def create_watering_image(preview=False):
     # -------------------------------------------------------------
     # 1. TOP HEADER / STATUS BAR (y: 2 to 20)
     # -------------------------------------------------------------
-    # Plant watering badge icon & text
-    draw.text((6, 5), "IRRIGO", fill=BLACK, font=font_tahoma_bold_8)
+    # Status dot
     draw.rectangle([46, 7, 50, 11], fill=RED) # status dot
     
     # Battery Symbol (x=66, y=6)
@@ -147,7 +146,8 @@ def create_watering_image(preview=False):
     # 2. HERO CARD: PLANT IDENTITY (y: 24 to 76)
     # -------------------------------------------------------------
     draw_round_rectangle(draw, [4, 24, 117, 76], radius=4, outline=BLACK, width=1)
-    draw.text((10, 27), "PLANT", fill=BLACK, font=font_tahoma_bold_8)
+    if preview:  # firmware draws section labels itself (driver Tahoma font)
+        draw.text((10, 27), "PLANT", fill=BLACK, font=font_tahoma_bold_8)
 
     # Sprout illustration in top right of card
     draw_sprout_icon(draw, 96, 44)
@@ -159,22 +159,23 @@ def create_watering_image(preview=False):
         draw.text((12, 64), "Zone A - Living room", fill=BLACK, font=font_tahoma_8)
 
     # -------------------------------------------------------------
-    # 3. METRIC CARD 1: MOISTURE / HUMIDITY (y: 81 to 143)
+    # 3. METRIC CARD 1: MOISTURE / HUMIDITY (y: 81 to 164)
     # -------------------------------------------------------------
-    draw_round_rectangle(draw, [4, 81, 117, 143], radius=4, outline=BLACK, width=1)
-    draw.text((10, 84), "SOIL MOISTURE", fill=BLACK, font=font_tahoma_bold_8)
+    draw_round_rectangle(draw, [4, 81, 117, 164], radius=4, outline=BLACK, width=1)
+    if preview:
+        draw.text((10, 84), "SOIL MOISTURE", fill=BLACK, font=font_tahoma_bold_8)
 
     # Water Droplet Icon
-    draw_droplet_icon(draw, 22, 106)
+    draw_droplet_icon(draw, 22, 114)
 
     # Moisture dynamic value
     if preview:
-        draw.text((42, 92), "68", fill=BLACK, font=font_tahoma_bold_18)
-        draw.text((70, 94), "%", fill=RED, font=font_tahoma_bold_12)
-        draw.text((42, 112), "STATUS: OPTIMAL", fill=BLACK, font=font_tahoma_8)
+        draw.text((42, 99), "68", fill=BLACK, font=font_tahoma_bold_18)
+        draw.text((70, 101), "%", fill=RED, font=font_tahoma_bold_12)
+        draw.text((42, 121), "STATUS: OPTIMAL", fill=BLACK, font=font_tahoma_8)
 
-    # Progress / Level Bar (y: 125 to 133)
-    bar_x0, bar_y0, bar_x1, bar_y1 = 12, 126, 109, 133
+    # Progress / Level Bar (y: 137 to 144), leaves room for the scale labels
+    bar_x0, bar_y0, bar_x1, bar_y1 = 12, 137, 109, 144
     draw.rectangle([bar_x0, bar_y0, bar_x1, bar_y1], outline=BLACK, fill=WHITE, width=1)
     
     # Tick marks for DRY, GOOD, WET
@@ -186,24 +187,24 @@ def create_watering_image(preview=False):
         # Fill up to 68% (approx x=78)
         draw.rectangle([bar_x0 + 1, bar_y0 + 1, 78, bar_y1 - 1], fill=YELLOW)
     
-    draw.text((12, 133), "DRY", fill=BLACK, font=font_tahoma_8)
-    draw.text((54, 133), "OK", fill=BLACK, font=font_tahoma_8)
-    draw.text((93, 133), "WET", fill=BLACK, font=font_tahoma_8)
+    if preview: draw.text((12, 148), "DRY", fill=BLACK, font=font_tahoma_8)
+    if preview: draw.text((54, 148), "OK", fill=BLACK, font=font_tahoma_8)
+    if preview: draw.text((93, 148), "WET", fill=BLACK, font=font_tahoma_8)
 
     # -------------------------------------------------------------
-    # 4. METRIC CARD 2: TEMPERATURE (y: 149 to 201)
+    # 4. METRIC CARD 2: TEMPERATURE (y: 170 to 201)
     # -------------------------------------------------------------
-    draw_round_rectangle(draw, [4, 149, 117, 201], radius=4, outline=BLACK, width=1)
-    draw.text((10, 152), "TEMPERATURE", fill=BLACK, font=font_tahoma_bold_8)
+    draw_round_rectangle(draw, [4, 170, 117, 201], radius=4, outline=BLACK, width=1)
+    if preview:
+        draw.text((42, 172), "TEMPERATURE", fill=BLACK, font=font_tahoma_bold_8)
 
     # Thermometer icon
-    draw_thermometer_icon(draw, 22, 175)
+    draw_thermometer_icon(draw, 22, 184)
 
     # Temperature dynamic value
     if preview:
-        draw.text((42, 162), "24.5", fill=BLACK, font=font_tahoma_bold_18)
-        draw.text((86, 164), "\u00B0C", fill=RED, font=font_tahoma_bold_12)
-        draw.text((42, 184), "AMBIENT TEMP", fill=BLACK, font=font_tahoma_8)
+        draw.text((42, 182), "24.5", fill=BLACK, font=font_tahoma_bold_18)
+        draw.text((86, 184), "\u00B0C", fill=RED, font=font_tahoma_bold_12)
 
     # -------------------------------------------------------------
     # 5. FOOTER: REFRESH TIMESTAMP & BRANDING (y: 207 to 247)
@@ -213,7 +214,8 @@ def create_watering_image(preview=False):
     # Clock Icon
     draw_clock_icon(draw, 18, 226, r=6)
 
-    draw.text((30, 212), "LAST REFRESH", fill=BLACK, font=font_tahoma_bold_8)
+    if preview:
+        draw.text((30, 212), "LAST REFRESH", fill=BLACK, font=font_tahoma_bold_8)
     
     if preview:
         draw.text((30, 224), "2026-11-07 08:30", fill=RED, font=font_tahoma_bold_8)

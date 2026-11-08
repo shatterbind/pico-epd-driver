@@ -47,8 +47,10 @@ epd_t epd_create(uint8_t dc)
     return epd_create_custom(spi1, pin_cfg, EPD_2_13_WIDTH, EPD_2_13_HEIGHT, DEPTH_2BIT, BAUD_RATE);
 }
 
-void epd_init(epd_t *epd)
+bool epd_init(epd_t *epd)
 {
+    bool ok = true;
+
     spi_init(epd->spi_port, epd->baud_rate);
 
     gpio_set_function(epd->pin_cfg.sck, GPIO_FUNC_SPI);
@@ -72,7 +74,7 @@ void epd_init(epd_t *epd)
     uint8_t command = 0;
     uint8_t length_data = 0;
 
-    epd_read_busy(epd);
+    ok &= epd_read_busy(epd);
 
     while (offset_ptr < sizeof(epd_2_13_init_cmds))
     {
@@ -89,17 +91,18 @@ void epd_init(epd_t *epd)
         offset_ptr += 2 + length_data;
     }
 
-    epd_read_busy(epd);
+    ok &= epd_read_busy(epd);
+    return ok;
 }
 
-void epd_turn_on(epd_t *epd)
+bool epd_turn_on(epd_t *epd)
 {
     const uint8_t cmd = 0x12;
     const uint8_t data = 0x00;
 
     epd_send_command(epd, cmd);
     epd_send_data(epd, &data, sizeof(uint8_t));
-    epd_read_busy(epd);
+    return epd_read_busy(epd);
 }
 
 void epd_send_command(epd_t *epd, uint8_t command)
@@ -116,7 +119,7 @@ void epd_send_data(epd_t *epd, const uint8_t *data, uint32_t length)
     epd_set_dc_cs(epd, 1, 1);
 }
 
-void epd_fill(epd_t *epd, uint8_t color)
+bool epd_fill(epd_t *epd, uint8_t color)
 {
     const uint8_t bits_per_pixel = (uint8_t)epd->depth;
     uint16_t row_bytes = (epd->width * bits_per_pixel + 7) / 8;
@@ -143,19 +146,22 @@ void epd_fill(epd_t *epd, uint8_t color)
     }
     epd_set_dc_cs(epd, 1, 1);
 
-    epd_turn_on(epd);
+    return epd_turn_on(epd);
 }
 
-void epd_display(epd_t *epd, uint8_t *data)
+uint32_t epd_canvas_size(const epd_t *epd)
 {
     const uint8_t bits_per_pixel = (uint8_t)epd->depth;
-    uint16_t row_bytes = (epd->width * bits_per_pixel + 7) / 8;
-    uint16_t height = epd->height;
+    const uint32_t row_bytes = ((uint32_t)epd->width * bits_per_pixel + 7u) / 8u;
+    return row_bytes * epd->height;
+}
 
+bool epd_display(epd_t *epd, uint8_t *data)
+{
     epd_send_command(epd, 0x10);
-    epd_send_data(epd, data, (uint32_t)row_bytes * height);
+    epd_send_data(epd, data, epd_canvas_size(epd));
 
-    epd_turn_on(epd);
+    return epd_turn_on(epd);
 }
 
 bool epd_read_busy_timeout(epd_t *epd, uint32_t timeout_ms)
@@ -173,9 +179,9 @@ bool epd_read_busy_timeout(epd_t *epd, uint32_t timeout_ms)
     return true;
 }
 
-void epd_read_busy(epd_t *epd)
+bool epd_read_busy(epd_t *epd)
 {
-    epd_read_busy_timeout(epd, EPD_BUSY_DEFAULT_TIMEOUT_MS);
+    return epd_read_busy_timeout(epd, EPD_BUSY_DEFAULT_TIMEOUT_MS);
 }
 
 void epd_reset(epd_t *epd)
@@ -193,16 +199,17 @@ void epd_set_dc_cs(epd_t *epd, uint8_t dc, uint8_t cs)
     sleep_us(1);
 }
 
-void epd_sleep(epd_t *epd)
+bool epd_sleep(epd_t *epd)
 {
     const uint8_t data = 0xa5;
 
     epd_send_command(epd, 0x02);
-    epd_read_busy(epd);
+    bool ok = epd_read_busy(epd);
 
     sleep_ms(100);
 
     epd_send_command(epd, 0x07);
     epd_send_data(epd, &data, sizeof(uint8_t));
+    return ok;
 }
 

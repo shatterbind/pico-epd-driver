@@ -9,6 +9,14 @@
 #define CHAR_BIT 8
 #endif
 
+/*
+ * Font selection. By default every font is compiled in. To build only the
+ * fonts you use (saves flash), define CANVAS_SELECT_FONTS plus the USE_* macros
+ * you need on the canvas target, e.g.:
+ *   target_compile_definitions(canvas PUBLIC CANVAS_SELECT_FONTS USE_FONT_TAHOMA_8)
+ */
+#ifndef CANVAS_SELECT_FONTS
+
 #ifndef USE_FONT_CAMBRIA_16
 #define USE_FONT_CAMBRIA_16
 #endif
@@ -36,6 +44,8 @@
 #ifndef USE_NOTO_KUFI_ARABIC_12
 #define USE_NOTO_KUFI_ARABIC_12
 #endif
+
+#endif /* CANVAS_SELECT_FONTS */
 
 
 /*************************************/
